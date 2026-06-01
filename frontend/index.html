@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Multiagent Workflow Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0c0c10;
+  --bg2:#111116;
+  --bg3:#18181f;
+  --surface:#1e1e27;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.12);
+  --text:#e8e6f0;
+  --text2:#9390a8;
+  --text3:#5a5770;
+  --gold:#c9a84c;
+  --gold2:#e8c97a;
+  --blue:#4a9eff;
+  --green:#4ecb8d;
+  --red:#ff6b6b;
+  --amber:#ffb347;
+  --purple:#a78bfa;
+  --mono:'JetBrains Mono',monospace;
+  --display:'Bebas Neue',cursive;
+  --serif:'Crimson Pro',serif;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--serif);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  font-size:16px;
+  line-height:1.6;
+}
+
+/* ── HEADER ── */
+.header{
+  padding:40px 48px 32px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,rgba(201,168,76,0.04) 0%,transparent 100%);
+  position:relative;
+  overflow:hidden;
+}
+.header::before{
+  content:'MULTIAGENT';
+  position:absolute;
+  right:-20px;top:-20px;
+  font-family:var(--display);
+  font-size:160px;
+  color:rgba(255,255,255,0.015);
+  letter-spacing:-4px;
+  pointer-events:none;
+  user-select:none;
+}
+.header-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px}
+.header-eyebrow{
+  font-family:var(--mono);font-size:10px;letter-spacing:3px;
+  color:var(--gold);text-transform:uppercase;margin-bottom:10px;
+}
+.header-title{
+  font-family:var(--display);font-size:52px;letter-spacing:2px;
+  line-height:1;color:var(--text);margin-bottom:6px;
+}
+.header-sub{
+  font-family:var(--serif);font-style:italic;font-size:17px;
+  color:var(--text2);max-width:480px;
+}
+.header-badge{
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;padding:6px 14px;
+  border:1px solid var(--gold);color:var(--gold);
+  border-radius:2px;opacity:0.7;
+}
+
+/* ── PIPELINE VIZ ── */
+.pipeline{
+  display:flex;align-items:center;gap:0;
+  padding:20px 48px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg2);
+  overflow-x:auto;
+}
+.pipe-agent{
+  display:flex;align-items:center;gap:0;
+  flex-shrink:0;
+}
+.pipe-node{
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+  padding:10px 16px;
+  border:1px solid var(--border2);
+  border-radius:4px;
+  background:var(--bg3);
+  min-width:100px;
+  transition:all 0.3s;
+  position:relative;
+}
+.pipe-node.active{
+  border-color:var(--gold);
+  background:rgba(201,168,76,0.08);
+  box-shadow:0 0 20px rgba(201,168,76,0.15);
+}
+.pipe-node.done{border-color:var(--green);background:rgba(78,203,141,0.06)}
+.pipe-node.error{border-color:var(--red);background:rgba(255,107,107,0.06)}
+.pipe-icon{font-size:18px}
+.pipe-label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
+.pipe-status{font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:2px}
+.pipe-node.active .pipe-label{color:var(--gold)}
+.pipe-node.active .pipe-status{color:var(--gold2)}
+.pipe-node.done .pipe-label{color:var(--green)}
+.pipe-node.done .pipe-status{color:var(--green)}
+.pipe-arrow{
+  font-family:var(--mono);font-size:14px;color:var(--text3);
+  padding:0 6px;flex-shrink:0;
+}
+
+/* ── MAIN LAYOUT ── */
+.main{display:grid;grid-template-columns:400px 1fr;min-height:calc(100vh - 220px)}
+@media(max-width:900px){.main{grid-template-columns:1fr}}
+
+/* ── LEFT PANEL ── */
+.left{
+  border-right:1px solid var(--border);
+  padding:32px 28px;
+  display:flex;flex-direction:column;gap:24px;
+}
+.panel-label{
+  font-family:var(--mono);font-size:9px;letter-spacing:2px;
+  text-transform:uppercase;color:var(--text3);margin-bottom:12px;
+}
+
+/* Query input */
+.query-wrap{
+  border:1px solid var(--border2);border-radius:4px;
+  background:var(--bg2);overflow:hidden;
+  transition:border-color 0.2s;
+}
+.query-wrap:focus-within{border-color:var(--gold)}
+#query-input{
+  width:100%;background:transparent;border:none;outline:none;
+  color:var(--text);font-family:var(--serif);font-size:15px;
+  padding:14px 16px;resize:none;min-height:100px;line-height:1.6;
+}
+#query-input::placeholder{color:var(--text3);font-style:italic}
+.query-footer{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 14px;border-top:1px solid var(--border);
+}
+.char-count{font-family:var(--mono);font-size:9px;color:var(--text3)}
+.run-btn{
+  font-family:var(--display);font-size:14px;letter-spacing:2px;
+  padding:7px 20px;background:var(--gold);color:#000;
+  border:none;border-radius:2px;cursor:pointer;
+  transition:all 0.15s;
+}
+.run-btn:hover{background:var(--gold2);transform:translateY(-1px)}
+.run-btn:active{transform:translateY(0)}
+.run-btn:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed;transform:none}
+
+/* Sample queries */
+.sample-chip{
+  display:block;width:100%;text-align:left;
+  background:var(--bg2);border:1px solid var(--border);
+  color:var(--text2);padding:10px 12px;border-radius:3px;
+  font-family:var(--serif);font-size:13px;cursor:pointer;
+  margin-bottom:6px;line-height:1.4;transition:all 0.15s;
+}
+.sample-chip:hover{border-color:var(--gold);color:var(--text);background:rgba(201,168,76,0.05)}
+.sample-sector{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  color:var(--gold);display:block;margin-bottom:3px;text-transform:uppercase;
+}
+
+/* API key */
+.api-input{
+  width:100%;background:var(--bg2);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px;border-radius:3px;
+  font-family:var(--mono);font-size:11px;outline:none;
+  transition:border-color 0.2s;
+}
+.api-input:focus{border-color:var(--gold)}
+
+/* ── RIGHT PANEL ── */
+.right{padding:32px 32px;display:flex;flex-direction:column;gap:24px}
+
+/* Welcome */
+.welcome{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;
+  min-height:400px;gap:16px;
+}
+.welcome-icon{font-size:48px;opacity:0.4}
+.welcome-title{
+  font-family:var(--display);font-size:32px;letter-spacing:2px;
+  color:var(--text2);
+}
+.welcome-sub{font-style:italic;color:var(--text3);max-width:360px}
+
+/* Result sections */
+.result-section{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:4px;overflow:hidden;
+  animation:fadeUp 0.4s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.result-section:nth-child(2){animation-delay:0.1s}
+.result-section:nth-child(3){animation-delay:0.2s}
+.result-section:nth-child(4){animation-delay:0.3s}
+.result-section:nth-child(5){animation-delay:0.4s}
+
+.section-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+  background:var(--bg3);
+}
+.section-icon{font-size:16px}
+.section-title{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text2)}
+.section-meta{font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:auto}
+.section-body{padding:16px 18px}
+
+/* Trace steps */
+.trace-step{
+  display:flex;gap:12px;padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+.trace-step:last-child{border-bottom:none}
+.trace-num{
+  font-family:var(--mono);font-size:9px;
+  color:var(--gold);min-width:20px;margin-top:2px;
+}
+.trace-agent{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--gold2);margin-bottom:2px}
+.trace-output{font-size:13px;color:var(--text2);line-height:1.5}
+.trace-ms{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px}
+
+/* Docs */
+.doc-card{
+  border:1px solid var(--border);border-radius:3px;
+  padding:12px 14px;margin-bottom:8px;
+  border-left:3px solid var(--gold);
+}
+.doc-title{font-family:var(--mono);font-size:10px;color:var(--gold2);margin-bottom:4px;letter-spacing:0.5px}
+.doc-sector{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.doc-excerpt{font-size:13px;color:var(--text2);line-height:1.5}
+
+/* Risks */
+.risk-card{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:10px 0;border-bottom:1px solid var(--border);
+}
+.risk-card:last-child{border-bottom:none}
+.risk-badge{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  padding:3px 8px;border-radius:2px;flex-shrink:0;margin-top:2px;
+  text-transform:uppercase;
+}
+.badge-high{background:rgba(255,107,107,0.15);color:var(--red);border:1px solid rgba(255,107,107,0.3)}
+.badge-medium{background:rgba(255,179,71,0.12);color:var(--amber);border:1px solid rgba(255,179,71,0.3)}
+.badge-low{background:rgba(78,203,141,0.1);color:var(--green);border:1px solid rgba(78,203,141,0.3)}
+.risk-name{font-size:14px;font-weight:600;margin-bottom:3px}
+.risk-mitigation{font-size:13px;color:var(--text2);font-style:italic}
+
+/* Final answer */
+.answer-text{
+  font-family:var(--serif);font-size:15px;line-height:1.8;
+  color:var(--text);white-space:pre-wrap;
+}
+
+/* Loading */
+.loading-wrap{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-height:300px;gap:16px;
+}
+.loading-agents{display:flex;gap:12px}
+.loading-dot{
+  width:8px;height:8px;border-radius:50%;
+  background:var(--gold);
+  animation:loadBounce 1.2s infinite;
+}
+.loading-dot:nth-child(2){animation-delay:0.2s}
+.loading-dot:nth-child(3){animation-delay:0.4s}
+.loading-dot:nth-child(4){animation-delay:0.6s}
+.loading-dot:nth-child(5){animation-delay:0.8s}
+@keyframes loadBounce{0%,80%,100%{transform:translateY(0);opacity:0.3}40%{transform:translateY(-10px);opacity:1}}
+.loading-text{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:1px}
+
+/* Domain badge */
+.domain-badge{
+  display:inline-block;font-family:var(--mono);font-size:9px;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:3px 10px;border-radius:2px;margin-left:8px;
+  background:rgba(201,168,76,0.12);color:var(--gold);
+  border:1px solid rgba(201,168,76,0.25);
+}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:24px;right:24px;
+  background:var(--surface);border:1px solid var(--border2);
+  border-radius:3px;padding:10px 16px;font-family:var(--mono);font-size:11px;
+  z-index:1000;transform:translateY(60px);opacity:0;transition:all 0.3s;
+}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.error{border-color:var(--red);color:var(--red)}
+#toast.success{border-color:var(--green);color:var(--green)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <div class="header-eyebrow">LangGraph · 5-Agent Pipeline · International Development</div>
+      <div class="header-title">Multiagent<br>Workflow Simulator</div>
+      <div class="header-sub">Orchestrated retrieval, reasoning, risk analysis, and synthesis for World Bank sector queries</div>
+    </div>
+    <div class="header-badge">Portfolio Demo · v1.0</div>
+  </div>
+</div>
+
+<!-- PIPELINE VISUALIZER -->
+<div class="pipeline">
+  <div class="pipe-agent">
+    <div class="pipe-node" id="node-router">
+      <div class="pipe-icon">🧭</div>
+      <div class="pipe-label">Router</div>
+      <div class="pipe-status">Detects domain</div>
+    </div>
+  </div>
+  <div class="pipe-arrow">──▶</div>
+  <div class="pipe-agent">
+    <div class="pipe-node" id="node-retrieval">
+      <div class="pipe-icon">📚</div>
+      <div class="pipe-label">Retrieval</div>
+      <div class="pipe-status">Fetches docs</div>
+    </div>
+  </div>
+  <div class="pipe-arrow">──▶</div>
+  <div class="pipe-agent">
+    <div class="pipe-node" id="node-reasoning">
+      <div class="pipe-icon">🧠</div>
+      <div class="pipe-label">Reasoning</div>
+      <div class="pipe-status">Analyzes</div>
+    </div>
+  </div>
+  <div class="pipe-arrow">──▶</div>
+  <div class="pipe-agent">
+    <div class="pipe-node" id="node-risk">
+      <div class="pipe-icon">⚠️</div>
+      <div class="pipe-label">Risk</div>
+      <div class="pipe-status">Flags risks</div>
+    </div>
+  </div>
+  <div class="pipe-arrow">──▶</div>
+  <div class="pipe-agent">
+    <div class="pipe-node" id="node-synthesis">
+      <div class="pipe-icon">✍️</div>
+      <div class="pipe-label">Synthesis</div>
+      <div class="pipe-status">Final answer</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+
+    <!-- API Key -->
+    <div>
+      <div class="panel-label">OpenAI API Key</div>
+      <input type="password" class="api-input" id="api-key" placeholder="sk-..." />
+    </div>
+
+    <!-- Query input -->
+    <div>
+      <div class="panel-label">Your Query</div>
+      <div class="query-wrap">
+        <textarea id="query-input" placeholder="Ask about sector lessons, project risks, operational insights…" oninput="updateChar(this)"></textarea>
+        <div class="query-footer">
+          <span class="char-count" id="char-count">0 chars</span>
+          <button class="run-btn" id="run-btn" onclick="runPipeline()">RUN AGENTS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sample queries -->
+    <div>
+      <div class="panel-label">Sample Queries</div>
+      <button class="sample-chip" onclick="useQuery(this)">
+        <span class="sample-sector">Transport</span>
+        What are the key lessons on community ownership in rural road maintenance?
+      </button>
+      <button class="sample-chip" onclick="useQuery(this)">
+        <span class="sample-sector">WASH</span>
+        How should water tariff reform be sequenced to avoid public resistance?
+      </button>
+      <button class="sample-chip" onclick="useQuery(this)">
+        <span class="sample-sector">Agriculture</span>
+        What digital tools have worked for smallholder farmers in low-connectivity areas?
+      </button>
+      <button class="sample-chip" onclick="useQuery(this)">
+        <span class="sample-sector">FCS</span>
+        What project design features predict success in fragile and conflict-affected states?
+      </button>
+      <button class="sample-chip" onclick="useQuery(this)">
+        <span class="sample-sector">Education</span>
+        Why do teacher deployment bottlenecks occur and how are they resolved?
+      </button>
+    </div>
+
+    <!-- Info -->
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <div class="panel-label">Pipeline</div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2">
+        <div>① Router → detects domain</div>
+        <div>② Retrieval → fetches sector docs</div>
+        <div>③ Reasoning → extracts insights</div>
+        <div>④ Risk → flags project risks</div>
+        <div>⑤ Synthesis → final response</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right" id="right-panel">
+    <div class="welcome" id="welcome-screen">
+      <div class="welcome-icon">⚙️</div>
+      <div class="welcome-title">Ready to Simulate</div>
+      <div class="welcome-sub">Enter your API key, type a query or pick a sample, then click Run Agents to watch the pipeline execute.</div>
+    </div>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API_BASE = 'https://multiagent-simulator.onrender.com';
+const NODES = ['router','retrieval','reasoning','risk','synthesis'];
+
+function updateChar(el) {
+  document.getElementById('char-count').textContent = el.value.length + ' chars';
+}
+
+function useQuery(btn) {
+  const text = btn.innerText.replace(/^[A-Z\s]+\n/,'').trim();
+  document.getElementById('query-input').value = text;
+  updateChar(document.getElementById('query-input'));
+}
+
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `show ${type}`;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = '', 3000);
+}
+
+function resetPipeline() {
+  NODES.forEach(n => {
+    const el = document.getElementById(`node-${n}`);
+    el.className = 'pipe-node';
+    el.querySelector('.pipe-status').textContent = {
+      router:'Detects domain', retrieval:'Fetches docs',
+      reasoning:'Analyzes', risk:'Flags risks', synthesis:'Final answer'
+    }[n];
+  });
+}
+
+function activateNode(name, status='Running…') {
+  const el = document.getElementById(`node-${name}`);
+  el.className = 'pipe-node active';
+  el.querySelector('.pipe-status').textContent = status;
+}
+
+function doneNode(name, status='Done') {
+  const el = document.getElementById(`node-${name}`);
+  el.className = 'pipe-node done';
+  el.querySelector('.pipe-status').textContent = status;
+}
+
+async function runPipeline() {
+  const key   = document.getElementById('api-key').value.trim();
+  const query = document.getElementById('query-input').value.trim();
+
+  if (!key)   { showToast('Enter your OpenAI API key', 'error'); return; }
+  if (!query) { showToast('Enter a query first', 'error'); return; }
+
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('welcome-screen')?.remove();
+  resetPipeline();
+
+  // Show loading
+  const right = document.getElementById('right-panel');
+  right.innerHTML = `
+    <div class="loading-wrap">
+      <div class="loading-agents">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      <div class="loading-text">AGENTS RUNNING — PLEASE WAIT</div>
+    </div>`;
+
+  // Animate pipeline nodes progressively
+  const delays = [0, 500, 2000, 4000, 6000];
+  NODES.forEach((n, i) => {
+    setTimeout(() => activateNode(n), delays[i]);
+    setTimeout(() => doneNode(n), delays[i] + 400);
+  });
+
+  try {
+    const res = await fetch(`${API_BASE}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
+      body: JSON.stringify({ query, api_key: key }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Pipeline error');
+    }
+
+    const data = await res.json();
+    NODES.forEach(n => doneNode(n, '✓ Done'));
+    renderResults(data);
+    showToast('Pipeline complete ✓', 'success');
+
+  } catch(e) {
+    NODES.forEach(n => {
+      document.getElementById(`node-${n}`).className = 'pipe-node';
+    });
+    right.innerHTML = `<div class="welcome"><div class="welcome-icon">⚠️</div>
+      <div class="welcome-title" style="color:var(--red)">Pipeline Error</div>
+      <div class="welcome-sub">${e.message}</div></div>`;
+    showToast('Error: ' + e.message, 'error');
+  }
+
+  document.getElementById('run-btn').disabled = false;
+}
+
+function renderResults(data) {
+  const right = document.getElementById('right-panel');
+  const totalMs = data.agent_trace.reduce((a,t)=>a+t.duration_ms,0);
+
+  right.innerHTML = `
+    <!-- AGENT TRACE -->
+    <div class="result-section">
+      <div class="section-header">
+        <span class="section-icon">⚡</span>
+        <span class="section-title">Agent Trace</span>
+        <span class="domain-badge">${data.domain}</span>
+        <span class="section-meta">${totalMs}ms total</span>
+      </div>
+      <div class="section-body">
+        ${data.agent_trace.map((t,i)=>`
+          <div class="trace-step">
+            <div class="trace-num">0${i+1}</div>
+            <div>
+              <div class="trace-agent">${t.agent}</div>
+              <div class="trace-output">${escHtml(t.output_summary)}</div>
+              <div class="trace-ms">${t.duration_ms}ms · ${t.timestamp.slice(11,19)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- RETRIEVED DOCS -->
+    <div class="result-section">
+      <div class="section-header">
+        <span class="section-icon">📚</span>
+        <span class="section-title">Retrieved Documents</span>
+        <span class="section-meta">${data.retrieved_docs.length} sources</span>
+      </div>
+      <div class="section-body">
+        ${data.retrieved_docs.map(d=>`
+          <div class="doc-card">
+            <div class="doc-sector">${d.sector}</div>
+            <div class="doc-title">${escHtml(d.title)}</div>
+            <div class="doc-excerpt">${escHtml(d.content.slice(0,180))}…</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- RISKS -->
+    <div class="result-section">
+      <div class="section-header">
+        <span class="section-icon">⚠️</span>
+        <span class="section-title">Risk Assessment</span>
+        <span class="section-meta">${data.risks.length} risks identified</span>
+      </div>
+      <div class="section-body">
+        ${data.risks.map(r=>`
+          <div class="risk-card">
+            <div class="risk-badge badge-${r.severity.toLowerCase()}">${r.severity}</div>
+            <div>
+              <div class="risk-name">${escHtml(r.risk)}</div>
+              <div class="risk-mitigation">${escHtml(r.mitigation)}</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <!-- FINAL ANSWER -->
+    <div class="result-section">
+      <div class="section-header">
+        <span class="section-icon">✍️</span>
+        <span class="section-title">Synthesized Response</span>
+        <span class="section-meta">gpt-4o-mini</span>
+      </div>
+      <div class="section-body">
+        <div class="answer-text">${escHtml(data.final_answer)}</div>
+      </div>
+    </div>
+  `;
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Enter key support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) runPipeline();
+});
+</script>
+</body>
+</html>
