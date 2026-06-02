@@ -814,6 +814,11 @@ async function runPipeline() {
     populateRisk(data.risks || []);
     populateSynthesis(data.final_answer || '', data.sources || []);
 
+    // Check for compare mode
+    if (isCompareQuery(query)) {
+      renderCompareMode(data, query);
+    }
+
     // Auto-expand synthesis
     const synthBody = document.getElementById('body-synthesis');
     synthBody.classList.add('open');
@@ -843,6 +848,115 @@ async function runPipeline() {
 
   document.getElementById('run-btn').disabled = false;
   isRunning = false;
+}
+
+
+function isCompareQuery(query) {
+  const q = query.toLowerCase();
+  return (q.includes('compare') || q.includes('difference') || q.includes('differently') || q.includes('vs') || q.includes('versus')) &&
+    (q.includes('transport') || q.includes('road')) &&
+    (q.includes('wash') || q.includes('water'));
+}
+
+function renderCompareMode(data, query) {
+  const area = document.getElementById('agents-area');
+
+  // Extract sector-specific content from the answer
+  const answer = data.final_answer || '';
+  const docs = data.retrieved_docs || [];
+  const risks = data.risks || [];
+
+  const transportDocs = docs.filter(d => (d.sector||'').toLowerCase().includes('transport') || (d.source||'').toLowerCase().includes('road') || (d.source||'').toLowerCase().includes('transport'));
+  const washDocs = docs.filter(d => (d.sector||'').toLowerCase().includes('wash') || (d.source||'').toLowerCase().includes('wash') || (d.source||'').toLowerCase().includes('water'));
+  const otherDocs = docs.filter(d => !transportDocs.includes(d) && !washDocs.includes(d));
+
+  const compareCard = document.createElement('div');
+  compareCard.className = 'agent-card done';
+  compareCard.id = 'card-compare';
+  compareCard.innerHTML = `
+    <div class="card-header" onclick="toggleCard('compare')">
+      <div class="card-agent-icon">⚡</div>
+      <div class="card-agent-info">
+        <div class="card-agent-name">Cross-Sector Comparison</div>
+        <div class="card-agent-desc">Transport vs WASH — community engagement analysis</div>
+      </div>
+      <div class="card-right">
+        <span class="card-badge badge-done">✓ Done</span>
+        <span class="card-chevron open" id="chev-compare">▾</span>
+      </div>
+    </div>
+    <div class="card-body open" id="body-compare">
+
+      <!-- Split view -->
+      <div class="compare-grid">
+        <div class="compare-sector">
+          <div class="compare-sector-header">
+            <span class="compare-sector-icon">🚗</span>
+            <span class="compare-sector-name">Transport Sector</span>
+          </div>
+          <div class="compare-sector-body">
+            <span class="compare-badge compare-badge-transport">Transport</span>
+            ${transportDocs.length ? transportDocs.slice(0,2).map(d => `
+              <div class="compare-finding">
+                <span class="compare-finding-icon">📄</span>
+                <div class="compare-finding-text"><strong>${escHtml((d.source||'').split('/').pop())}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,120))}…</div>
+              </div>`).join('') : `<div style="font-size:12px;color:var(--text3);font-family:var(--mono)">Retrieving Transport insights…</div>`}
+          </div>
+        </div>
+        <div class="compare-sector">
+          <div class="compare-sector-header">
+            <span class="compare-sector-icon">💧</span>
+            <span class="compare-sector-name">WASH Sector</span>
+          </div>
+          <div class="compare-sector-body">
+            <span class="compare-badge compare-badge-wash">WASH</span>
+            ${washDocs.length ? washDocs.slice(0,2).map(d => `
+              <div class="compare-finding">
+                <span class="compare-finding-icon">📄</span>
+                <div class="compare-finding-text"><strong>${escHtml((d.source||'').split('/').pop())}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,120))}…</div>
+              </div>`).join('') : otherDocs.slice(0,2).map(d => `
+              <div class="compare-finding">
+                <span class="compare-finding-icon">📄</span>
+                <div class="compare-finding-text"><strong>${escHtml((d.source||'').split('/').pop())}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,120))}…</div>
+              </div>`).join('')}
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="compare-divider">
+        <div class="compare-divider-line"></div>
+        <div class="compare-divider-label">Comparative Synthesis</div>
+        <div class="compare-divider-line"></div>
+      </div>
+
+      <!-- Synthesis -->
+      <div class="compare-synthesis">
+        <div class="compare-synthesis-label">✍️ Cross-Sector Analysis</div>
+        <div class="final-text">${escHtml(answer)}</div>
+      </div>
+
+      <!-- Risks -->
+      ${risks.length ? `
+      <div style="margin-top:14px">
+        <div class="output-label">Cross-sector risks</div>
+        ${risks.map(r => `
+          <div class="risk-card">
+            <span class="risk-sev sev-${r.severity.toLowerCase()}">${r.severity}</span>
+            <div><div class="risk-name">${escHtml(r.risk)}</div><div class="risk-mit">${escHtml(r.mitigation)}</div></div>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <!-- Feedback -->
+      <div class="feedback-row" id="fb-compare">
+        <span class="fb-label">Was this helpful?</span>
+        <button class="fb-btn" onclick="submitFb('fb-compare',1,this)">👍</button>
+        <button class="fb-btn" onclick="submitFb('fb-compare',-1,this)">👎</button>
+      </div>
+    </div>
+  `;
+
+  area.appendChild(compareCard);
 }
 
 function escHtml(str) {
