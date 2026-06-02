@@ -840,12 +840,12 @@ async function runPipeline() {
 
     // Populate each card body
     populateRouter(data);
-    populateRetrieval(data.retrieved_docs, data.docs_domain_a, data.docs_domain_b, data.domain_a, data.domain_b);
+    populateRetrieval(data.retrieved_docs, data.docs_sect_alpha, data.docs_sect_beta, data.sect_alpha, data.sect_beta);
     const reasoningText = data.reasoning || data.analysis || (data.agent_trace && data.agent_trace[2] ? data.agent_trace[2].output_summary : '') || '';
     populateReasoning(reasoningText);
     // If comparison mode, add comparison agent card
     if (data.query_type === 'comparison' && data.comparison) {
-      populateComparisonAgent(data.comparison, data.domain_a, data.domain_b);
+      populateComparisonAgent(data.comparison, data.sect_alpha, data.sect_beta);
     }
     populateRisk(data.risks || []);
     populateSynthesis(data.final_answer || data.answer || '', data.sources || data.retrieved_docs || []);
