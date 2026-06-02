@@ -373,7 +373,8 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:1
 </div>
 
 <!-- PIPELINE STRIP -->
-<div class="pipeline-strip">
+<div class="pipeline-strip" id="pipeline-strip">
+  <!-- Rendered dynamically based on query type -->
   <div class="pipe-node idle" id="pipe-router">
     <span class="pipe-ms" id="ms-router"></span>
     <div class="pipe-icon">🧭</div>
@@ -540,13 +541,24 @@ body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:1
 // ── Config ────────────────────────────────────────────────────────────────────
 const API = 'https://sector-ai-agent.onrender.com';
 
-const AGENTS = [
-  { key:'router',    icon:'🧭', name:'Router Agent',    desc:'Detects sector domain and plans retrieval strategy' },
-  { key:'retrieval', icon:'📚', name:'Retrieval Agent', desc:'Fetches relevant documents from FAISS vector store' },
+const STANDARD_AGENTS = [
+  { key:'router',    icon:'🧭', name:'Router Agent',    desc:'Detects domain · routes to standard or comparison pipeline' },
+  { key:'retrieval', icon:'📚', name:'Retrieval Agent', desc:'Fetches relevant documents from FAISS vector store via MMR' },
   { key:'reasoning', icon:'🧠', name:'Reasoning Agent', desc:'Analyzes documents and extracts structured insights' },
   { key:'risk',      icon:'⚠️', name:'Risk Agent',      desc:'Identifies operational risks with severity ratings' },
   { key:'synthesis', icon:'✍️', name:'Synthesis Agent', desc:'Synthesizes final grounded response with citations' },
 ];
+
+const COMPARE_AGENTS = [
+  { key:'router',     icon:'🧭', name:'Router Agent',       desc:'Detects COMPARISON query · splits into two parallel tasks' },
+  { key:'sector_a',  icon:'🔵', name:'Sector A Agent',     desc:'Retrieves & analyzes first sector documents independently' },
+  { key:'sector_b',  icon:'🟢', name:'Sector B Agent',     desc:'Retrieves & analyzes second sector documents independently' },
+  { key:'comparison',icon:'⚡', name:'Comparison Agent',   desc:'Finds differences, patterns, and transferable lessons' },
+  { key:'risk',      icon:'⚠️', name:'Risk Agent',          desc:'Identifies cross-sector implementation risks' },
+  { key:'synthesis', icon:'✍️', name:'Synthesis Agent',     desc:'Writes final comparative brief with recommendations' },
+];
+
+let AGENTS = STANDARD_AGENTS;
 
 let isRunning = false;
 let expandedCards = new Set();
@@ -689,6 +701,17 @@ function populateReasoning(reasoning) {
     </div>`;
 }
 
+
+function populateComparisonAgent(comparison, sectorA, sectorB) {
+  const body = document.getElementById('body-comparison');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Cross-sector analysis · ${sectorA} vs ${sectorB}</div>
+      <div class="output-text">${escHtml(comparison)}</div>
+    </div>`;
+}
+
 function populateRisk(risks) {
   const cards = risks.map(r => `
     <div class="risk-card">
@@ -755,6 +778,12 @@ async function runPipeline() {
   document.getElementById('welcome').style.display = 'none';
   document.getElementById('summary-bar').style.display = 'none';
 
+  // Detect compare and rebuild pipeline strip
+  const isCompare = isCompareQuery(query);
+  const sectorA = isCompare && query.toLowerCase().includes('transport') ? 'Transport' : isCompare ? 'Sector A' : '';
+  const sectorB = isCompare && query.toLowerCase().includes('wash') ? 'WASH' : isCompare && query.toLowerCase().includes('water') ? 'WASH' : isCompare ? 'Sector B' : '';
+  rebuildPipelineStrip(isCompare, sectorA, sectorB);
+
   // Reset pipeline strip
   AGENTS.forEach(a => setPipeNode(a.key, 'idle'));
   document.getElementById('total-time').textContent = '';
@@ -811,9 +840,13 @@ async function runPipeline() {
 
     // Populate each card body
     populateRouter(data);
-    populateRetrieval(data.retrieved_docs || []);
+    populateRetrieval(data.retrieved_docs, data.docs_sector_a, data.docs_sector_b, data.sector_a, data.sector_b);
     const reasoningText = data.reasoning || data.analysis || (data.agent_trace && data.agent_trace[2] ? data.agent_trace[2].output_summary : '') || '';
     populateReasoning(reasoningText);
+    // If comparison mode, add comparison agent card
+    if (data.query_type === 'comparison' && data.comparison) {
+      populateComparisonAgent(data.comparison, data.sector_a, data.sector_b);
+    }
     populateRisk(data.risks || []);
     populateSynthesis(data.final_answer || data.answer || '', data.sources || data.retrieved_docs || []);
 
@@ -855,6 +888,43 @@ async function runPipeline() {
 }
 
 
+
+function rebuildPipelineStrip(isCompare, sectorA, sectorB) {
+  const strip = document.getElementById('pipeline-strip');
+  if (isCompare) {
+    AGENTS = COMPARE_AGENTS;
+    strip.innerHTML = `
+      <div class="pipe-node idle" id="pipe-router"><span class="pipe-ms" id="ms-router"></span><div class="pipe-icon">🧭</div><div class="pipe-name">Router</div><div class="pipe-status" id="ps-router">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <div class="pipe-node idle" id="pipe-sector_a" style="min-width:80px"><span class="pipe-ms" id="ms-sector_a"></span><div class="pipe-icon">🔵</div><div class="pipe-name" style="font-size:7px">${sectorA}</div><div class="pipe-status" id="ps-sector_a">Waiting</div></div>
+        <div class="pipe-node idle" id="pipe-sector_b" style="min-width:80px"><span class="pipe-ms" id="ms-sector_b"></span><div class="pipe-icon">🟢</div><div class="pipe-name" style="font-size:7px">${sectorB}</div><div class="pipe-status" id="ps-sector_b">Waiting</div></div>
+      </div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-comparison"><span class="pipe-ms" id="ms-comparison"></span><div class="pipe-icon">⚡</div><div class="pipe-name">Compare</div><div class="pipe-status" id="ps-comparison">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-risk"><span class="pipe-ms" id="ms-risk"></span><div class="pipe-icon">⚠️</div><div class="pipe-name">Risk</div><div class="pipe-status" id="ps-risk">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-synthesis"><span class="pipe-ms" id="ms-synthesis"></span><div class="pipe-icon">✍️</div><div class="pipe-name">Synthesis</div><div class="pipe-status" id="ps-synthesis">Waiting</div></div>
+      <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap" id="total-time"></div>
+    `;
+  } else {
+    AGENTS = STANDARD_AGENTS;
+    strip.innerHTML = `
+      <div class="pipe-node idle" id="pipe-router"><span class="pipe-ms" id="ms-router"></span><div class="pipe-icon">🧭</div><div class="pipe-name">Router</div><div class="pipe-status" id="ps-router">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-retrieval"><span class="pipe-ms" id="ms-retrieval"></span><div class="pipe-icon">📚</div><div class="pipe-name">Retrieval</div><div class="pipe-status" id="ps-retrieval">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-reasoning"><span class="pipe-ms" id="ms-reasoning"></span><div class="pipe-icon">🧠</div><div class="pipe-name">Reasoning</div><div class="pipe-status" id="ps-reasoning">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-risk"><span class="pipe-ms" id="ms-risk"></span><div class="pipe-icon">⚠️</div><div class="pipe-name">Risk</div><div class="pipe-status" id="ps-risk">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-synthesis"><span class="pipe-ms" id="ms-synthesis"></span><div class="pipe-icon">✍️</div><div class="pipe-name">Synthesis</div><div class="pipe-status" id="ps-synthesis">Waiting</div></div>
+      <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap" id="total-time"></div>
+    `;
+  }
+}
+
 function isCompareQuery(query) {
   const q = query.toLowerCase();
   return (q.includes('compare') || q.includes('difference') || q.includes('differently') || q.includes('vs') || q.includes('versus')) &&
@@ -870,8 +940,19 @@ function renderCompareMode(data, query) {
   const docs = data.retrieved_docs || [];
   const risks = data.risks || [];
 
-  const transportDocs = docs.filter(d => (d.sector||'').toLowerCase().includes('transport') || (d.source||'').toLowerCase().includes('road') || (d.source||'').toLowerCase().includes('transport'));
-  const washDocs = docs.filter(d => (d.sector||'').toLowerCase().includes('wash') || (d.source||'').toLowerCase().includes('wash') || (d.source||'').toLowerCase().includes('water'));
+  // Flexible matching - check source name, sector, and content keywords
+  const transportDocs = docs.filter(d => {
+    const text = ((d.sector||'') + (d.source||'') + (d.snippet||d.content||'')).toLowerCase();
+    return text.includes('transport') || text.includes('road') || text.includes('rural') || text.includes('bridge') || text.includes('highway') || text.includes('icr');
+  });
+  const washDocs = docs.filter(d => {
+    const text = ((d.sector||'') + (d.source||'') + (d.snippet||d.content||'')).toLowerCase();
+    return text.includes('wash') || text.includes('water') || text.includes('sanitation') || text.includes('tariff') || text.includes('nrw');
+  });
+  // If filtering finds nothing, split docs evenly between the two panels
+  const halfLen = Math.ceil(docs.length / 2);
+  const transportDisplay = transportDocs.length > 0 ? transportDocs : docs.slice(0, halfLen);
+  const washDisplay = washDocs.length > 0 ? washDocs : docs.slice(halfLen);
   const otherDocs = docs.filter(d => !transportDocs.includes(d) && !washDocs.includes(d));
 
   const compareCard = document.createElement('div');
@@ -900,7 +981,7 @@ function renderCompareMode(data, query) {
           </div>
           <div style="padding:12px 14px">
             <span style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;display:inline-block;margin-bottom:8px;background:rgba(68,136,255,0.12);color:var(--blue2);border:1px solid rgba(68,136,255,0.25)">Transport</span>
-            ${(transportDocs.length ? transportDocs : docs.filter((_,i)=>i%2===0)).slice(0,2).map(d => `
+            ${transportDisplay.slice(0,2).map(d => `
               <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
                 <span style="flex-shrink:0">📄</span>
                 <div style="color:var(--text2);line-height:1.5"><strong style="color:var(--text)">${escHtml((d.source||'').split('/').pop().replace('.txt',''))}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,140))}…</div>
@@ -914,7 +995,7 @@ function renderCompareMode(data, query) {
           </div>
           <div style="padding:12px 14px">
             <span style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;display:inline-block;margin-bottom:8px;background:rgba(45,212,191,0.1);color:var(--teal);border:1px solid rgba(45,212,191,0.25)">WASH</span>
-            ${(washDocs.length ? washDocs : docs.filter((_,i)=>i%2===1)).slice(0,2).map(d => `
+            ${washDisplay.slice(0,2).map(d => `
               <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
                 <span style="flex-shrink:0">📄</span>
                 <div style="color:var(--text2);line-height:1.5"><strong style="color:var(--text)">${escHtml((d.source||'').split('/').pop().replace('.txt',''))}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,140))}…</div>
