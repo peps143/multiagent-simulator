@@ -4,529 +4,782 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Multiagent Workflow Simulator</title>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0c0c10;
-  --bg2:#111116;
-  --bg3:#18181f;
-  --surface:#1e1e27;
-  --border:rgba(255,255,255,0.07);
-  --border2:rgba(255,255,255,0.12);
-  --text:#e8e6f0;
-  --text2:#9390a8;
-  --text3:#5a5770;
-  --gold:#c9a84c;
-  --gold2:#e8c97a;
-  --blue:#4a9eff;
-  --green:#4ecb8d;
-  --red:#ff6b6b;
-  --amber:#ffb347;
-  --purple:#a78bfa;
-  --mono:'JetBrains Mono',monospace;
-  --display:'Bebas Neue',cursive;
-  --serif:'Crimson Pro',serif;
+  --bg:#09090f;--bg2:#0f0f17;--bg3:#15151f;
+  --surface:#1a1a26;--surface2:#21212f;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+  --text:#eeeaf8;--text2:#9693aa;--text3:#5a5770;
+  --gold:#d4a847;--gold2:#f0c75a;
+  --blue:#4488ff;--blue2:#6aa3ff;
+  --green:#3ecf8e;--red:#f87171;--amber:#fbbf24;--purple:#a78bfa;--teal:#2dd4bf;
+  --mono:'Space Mono',monospace;--display:'Syne',sans-serif;--body:'DM Sans',sans-serif;
+  --r:6px;--r2:10px;
 }
 html{scroll-behavior:smooth}
-body{
-  font-family:var(--serif);
-  background:var(--bg);
-  color:var(--text);
-  min-height:100vh;
-  font-size:16px;
-  line-height:1.6;
-}
+body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
-/* ── HEADER ── */
+/* HEADER */
 .header{
-  padding:40px 48px 32px;
+  background:linear-gradient(135deg,#0d0d1a 0%,#0a0a14 100%);
   border-bottom:1px solid var(--border);
-  background:linear-gradient(180deg,rgba(201,168,76,0.04) 0%,transparent 100%);
-  position:relative;
-  overflow:hidden;
+  padding:20px 32px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  position:relative;overflow:hidden;
 }
-.header::before{
-  content:'MULTIAGENT';
-  position:absolute;
-  right:-20px;top:-20px;
-  font-family:var(--display);
-  font-size:160px;
-  color:rgba(255,255,255,0.015);
-  letter-spacing:-4px;
+.header::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at 20% 50%,rgba(68,136,255,0.06) 0%,transparent 60%);
   pointer-events:none;
-  user-select:none;
 }
-.header-top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px}
-.header-eyebrow{
-  font-family:var(--mono);font-size:10px;letter-spacing:3px;
-  color:var(--gold);text-transform:uppercase;margin-bottom:10px;
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,var(--blue) 0%,var(--purple) 100%);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
 }
-.header-title{
-  font-family:var(--display);font-size:52px;letter-spacing:2px;
-  line-height:1;color:var(--text);margin-bottom:6px;
-}
-.header-sub{
-  font-family:var(--serif);font-style:italic;font-size:17px;
-  color:var(--text2);max-width:480px;
-}
-.header-badge{
-  font-family:var(--mono);font-size:9px;letter-spacing:2px;
-  text-transform:uppercase;padding:6px 14px;
-  border:1px solid var(--gold);color:var(--gold);
-  border-radius:2px;opacity:0.7;
-}
+.brand-title{font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:-0.3px}
+.brand-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+.header-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:3px;border:1px solid}
+.badge-blue{border-color:rgba(68,136,255,0.35);color:var(--blue2);background:rgba(68,136,255,0.08)}
+.badge-gold{border-color:rgba(212,168,71,0.35);color:var(--gold2);background:rgba(212,168,71,0.08)}
+.badge-green{border-color:rgba(62,207,142,0.35);color:var(--green);background:rgba(62,207,142,0.08)}
 
-/* ── PIPELINE VIZ ── */
-.pipeline{
-  display:flex;align-items:center;gap:0;
-  padding:20px 48px;
-  border-bottom:1px solid var(--border);
-  background:var(--bg2);
-  overflow-x:auto;
-}
-.pipe-agent{
-  display:flex;align-items:center;gap:0;
-  flex-shrink:0;
+/* PROGRESS BAR */
+.progress-bar{height:2px;background:linear-gradient(90deg,var(--blue),var(--purple),var(--teal));width:0%;transition:width 0.4s;position:fixed;top:0;left:0;z-index:999}
+
+/* PIPELINE STRIP */
+.pipeline-strip{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:16px 32px;
+  display:flex;align-items:center;gap:4px;overflow-x:auto;
 }
 .pipe-node{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
-  padding:10px 16px;
-  border:1px solid var(--border2);
-  border-radius:4px;
-  background:var(--bg3);
-  min-width:100px;
-  transition:all 0.3s;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 14px;border-radius:var(--r);border:1px solid var(--border2);
+  background:var(--bg3);min-width:90px;flex-shrink:0;
+  transition:all 0.4s cubic-bezier(.4,0,.2,1);cursor:default;
   position:relative;
 }
-.pipe-node.active{
-  border-color:var(--gold);
-  background:rgba(201,168,76,0.08);
-  box-shadow:0 0 20px rgba(201,168,76,0.15);
+.pipe-node.idle{opacity:0.45}
+.pipe-node.running{
+  border-color:var(--gold);background:rgba(212,168,71,0.08);
+  box-shadow:0 0 24px rgba(212,168,71,0.2);
+  animation:pulseBorder 1.5s infinite;
 }
-.pipe-node.done{border-color:var(--green);background:rgba(78,203,141,0.06)}
-.pipe-node.error{border-color:var(--red);background:rgba(255,107,107,0.06)}
+.pipe-node.done{border-color:var(--green);background:rgba(62,207,142,0.07);opacity:1}
+.pipe-node.error{border-color:var(--red);background:rgba(248,113,113,0.07);opacity:1}
+@keyframes pulseBorder{0%,100%{box-shadow:0 0 12px rgba(212,168,71,0.2)}50%{box-shadow:0 0 28px rgba(212,168,71,0.4)}}
 .pipe-icon{font-size:18px}
-.pipe-label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
-.pipe-status{font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:2px}
-.pipe-node.active .pipe-label{color:var(--gold)}
-.pipe-node.active .pipe-status{color:var(--gold2)}
-.pipe-node.done .pipe-label{color:var(--green)}
+.pipe-name{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2)}
+.pipe-status{font-size:9px;color:var(--text3);font-family:var(--mono)}
+.pipe-node.running .pipe-name{color:var(--gold2)}
+.pipe-node.running .pipe-status{color:var(--gold)}
+.pipe-node.done .pipe-name{color:var(--green)}
 .pipe-node.done .pipe-status{color:var(--green)}
-.pipe-arrow{
-  font-family:var(--mono);font-size:14px;color:var(--text3);
-  padding:0 6px;flex-shrink:0;
+.pipe-ms{
+  position:absolute;top:-8px;right:-4px;
+  font-family:var(--mono);font-size:8px;
+  background:var(--green);color:#000;
+  padding:1px 5px;border-radius:3px;
+  opacity:0;transition:opacity 0.3s;
 }
+.pipe-node.done .pipe-ms{opacity:1}
+.pipe-connector{color:var(--text3);font-size:12px;padding:0 2px;flex-shrink:0;font-family:var(--mono)}
 
-/* ── MAIN LAYOUT ── */
-.main{display:grid;grid-template-columns:400px 1fr;min-height:calc(100vh - 220px)}
-@media(max-width:900px){.main{grid-template-columns:1fr}}
+/* MAIN LAYOUT */
+.layout{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 130px)}
+@media(max-width:880px){.layout{grid-template-columns:1fr}}
 
-/* ── LEFT PANEL ── */
-.left{
-  border-right:1px solid var(--border);
-  padding:32px 28px;
-  display:flex;flex-direction:column;gap:24px;
+/* SIDEBAR */
+.sidebar{
+  background:var(--bg2);border-right:1px solid var(--border);
+  overflow-y:auto;display:flex;flex-direction:column;
 }
-.panel-label{
-  font-family:var(--mono);font-size:9px;letter-spacing:2px;
-  text-transform:uppercase;color:var(--text3);margin-bottom:12px;
-}
+.sidebar-section{padding:18px 16px;border-bottom:1px solid var(--border)}
+.section-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
 
-/* Query input */
-.query-wrap{
-  border:1px solid var(--border2);border-radius:4px;
-  background:var(--bg2);overflow:hidden;
-  transition:border-color 0.2s;
-}
-.query-wrap:focus-within{border-color:var(--gold)}
-#query-input{
-  width:100%;background:transparent;border:none;outline:none;
-  color:var(--text);font-family:var(--serif);font-size:15px;
-  padding:14px 16px;resize:none;min-height:100px;line-height:1.6;
-}
-#query-input::placeholder{color:var(--text3);font-style:italic}
-.query-footer{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:8px 14px;border-top:1px solid var(--border);
-}
-.char-count{font-family:var(--mono);font-size:9px;color:var(--text3)}
-.run-btn{
-  font-family:var(--display);font-size:14px;letter-spacing:2px;
-  padding:7px 20px;background:var(--gold);color:#000;
-  border:none;border-radius:2px;cursor:pointer;
-  transition:all 0.15s;
-}
-.run-btn:hover{background:var(--gold2);transform:translateY(-1px)}
-.run-btn:active{transform:translateY(0)}
-.run-btn:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed;transform:none}
-
-/* Sample queries */
-.sample-chip{
-  display:block;width:100%;text-align:left;
-  background:var(--bg2);border:1px solid var(--border);
-  color:var(--text2);padding:10px 12px;border-radius:3px;
-  font-family:var(--serif);font-size:13px;cursor:pointer;
-  margin-bottom:6px;line-height:1.4;transition:all 0.15s;
-}
-.sample-chip:hover{border-color:var(--gold);color:var(--text);background:rgba(201,168,76,0.05)}
-.sample-sector{
-  font-family:var(--mono);font-size:8px;letter-spacing:1px;
-  color:var(--gold);display:block;margin-bottom:3px;text-transform:uppercase;
-}
-
-/* API key */
+/* API input */
+.field-label{font-size:11px;color:var(--text2);margin-bottom:5px;font-family:var(--mono)}
 .api-input{
-  width:100%;background:var(--bg2);border:1px solid var(--border);
-  color:var(--text);padding:9px 12px;border-radius:3px;
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text);padding:9px 12px;border-radius:var(--r);
   font-family:var(--mono);font-size:11px;outline:none;
   transition:border-color 0.2s;
 }
-.api-input:focus{border-color:var(--gold)}
+.api-input:focus{border-color:var(--blue)}
 
-/* ── RIGHT PANEL ── */
-.right{padding:32px 32px;display:flex;flex-direction:column;gap:24px}
+/* Query input */
+.query-wrap{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);overflow:hidden;transition:border-color 0.2s;
+}
+.query-wrap:focus-within{border-color:var(--blue)}
+#query-input{
+  width:100%;background:transparent;border:none;outline:none;
+  color:var(--text);font-family:var(--body);font-size:13px;
+  padding:12px 14px;resize:none;min-height:80px;line-height:1.6;
+}
+#query-input::placeholder{color:var(--text3);font-style:italic}
+
+/* Run button */
+.run-btn{
+  width:100%;padding:11px;border-radius:var(--r);
+  font-family:var(--display);font-size:15px;letter-spacing:2px;
+  background:linear-gradient(135deg,var(--blue) 0%,var(--purple) 100%);
+  color:#fff;border:none;cursor:pointer;margin-top:10px;
+  transition:all 0.2s;position:relative;overflow:hidden;
+}
+.run-btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--purple) 0%,var(--blue) 100%);
+  opacity:0;transition:opacity 0.3s;
+}
+.run-btn:hover::after{opacity:1}
+.run-btn span{position:relative;z-index:1}
+.run-btn:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed}
+.run-btn:disabled::after{display:none}
+.reset-btn{
+  width:100%;padding:8px;border-radius:var(--r);margin-top:6px;
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;
+  background:transparent;color:var(--text3);border:1px solid var(--border);cursor:pointer;
+  transition:all 0.15s;
+}
+.reset-btn:hover{border-color:var(--border2);color:var(--text2)}
+
+/* Sample chips */
+.chip{
+  display:block;width:100%;text-align:left;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);padding:9px 11px;border-radius:var(--r);
+  font-size:12px;cursor:pointer;margin-bottom:6px;line-height:1.4;
+  transition:all 0.15s;font-family:var(--body);
+}
+.chip:hover{border-color:var(--blue);color:var(--text);background:rgba(68,136,255,0.06)}
+.chip-tag{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--gold);display:block;margin-bottom:3px;
+}
+.chip.highlight{border-color:rgba(212,168,71,0.3);background:rgba(212,168,71,0.04)}
+.chip.highlight:hover{border-color:var(--gold);background:rgba(212,168,71,0.08)}
+.chip.highlight .chip-tag{color:var(--gold2)}
+
+/* How it works */
+.step-list{font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2.2}
+.step-list span{color:var(--blue2)}
+
+/* MAIN PANEL */
+.main{display:flex;flex-direction:column;overflow:hidden}
 
 /* Welcome */
 .welcome{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;text-align:center;
-  min-height:400px;gap:16px;
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:40px 32px;gap:16px;
 }
-.welcome-icon{font-size:48px;opacity:0.4}
-.welcome-title{
-  font-family:var(--display);font-size:32px;letter-spacing:2px;
-  color:var(--text2);
+.welcome-glow{
+  width:80px;height:80px;border-radius:20px;
+  background:linear-gradient(135deg,rgba(68,136,255,0.2) 0%,rgba(167,139,250,0.2) 100%);
+  border:1px solid rgba(68,136,255,0.2);
+  display:flex;align-items:center;justify-content:center;font-size:36px;
+  box-shadow:0 0 40px rgba(68,136,255,0.1);
 }
-.welcome-sub{font-style:italic;color:var(--text3);max-width:360px}
+.welcome h2{font-family:var(--display);font-size:24px;font-weight:800;color:var(--text2)}
+.welcome p{color:var(--text3);max-width:380px;line-height:1.6;font-size:13px}
+.welcome-steps{
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;
+}
+.welcome-step{
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  padding:4px 10px;border-radius:3px;
+  background:var(--bg2);border:1px solid var(--border);color:var(--text3);
+}
 
-/* Result sections */
-.result-section{
+/* Agent cards area */
+.agents-area{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px}
+
+/* Agent card */
+.agent-card{
   background:var(--bg2);border:1px solid var(--border);
-  border-radius:4px;overflow:hidden;
-  animation:fadeUp 0.4s ease both;
+  border-radius:var(--r2);overflow:hidden;
+  transition:border-color 0.3s;
+  animation:slideIn 0.4s ease both;
 }
-@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.result-section:nth-child(2){animation-delay:0.1s}
-.result-section:nth-child(3){animation-delay:0.2s}
-.result-section:nth-child(4){animation-delay:0.3s}
-.result-section:nth-child(5){animation-delay:0.4s}
+@keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.agent-card.running{border-color:var(--gold)}
+.agent-card.done{border-color:rgba(62,207,142,0.3)}
+.agent-card.error{border-color:rgba(248,113,113,0.3)}
 
-.section-header{
+.card-header{
   display:flex;align-items:center;gap:10px;
-  padding:12px 16px;border-bottom:1px solid var(--border);
-  background:var(--bg3);
+  padding:12px 16px;cursor:pointer;
+  background:var(--bg3);border-bottom:1px solid var(--border);
+  transition:background 0.15s;
 }
-.section-icon{font-size:16px}
-.section-title{font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text2)}
-.section-meta{font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:auto}
-.section-body{padding:16px 18px}
-
-/* Trace steps */
-.trace-step{
-  display:flex;gap:12px;padding:10px 0;
-  border-bottom:1px solid var(--border);
-}
-.trace-step:last-child{border-bottom:none}
-.trace-num{
-  font-family:var(--mono);font-size:9px;
-  color:var(--gold);min-width:20px;margin-top:2px;
-}
-.trace-agent{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--gold2);margin-bottom:2px}
-.trace-output{font-size:13px;color:var(--text2);line-height:1.5}
-.trace-ms{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:2px}
-
-/* Docs */
-.doc-card{
-  border:1px solid var(--border);border-radius:3px;
-  padding:12px 14px;margin-bottom:8px;
-  border-left:3px solid var(--gold);
-}
-.doc-title{font-family:var(--mono);font-size:10px;color:var(--gold2);margin-bottom:4px;letter-spacing:0.5px}
-.doc-sector{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
-.doc-excerpt{font-size:13px;color:var(--text2);line-height:1.5}
-
-/* Risks */
-.risk-card{
-  display:flex;gap:12px;align-items:flex-start;
-  padding:10px 0;border-bottom:1px solid var(--border);
-}
-.risk-card:last-child{border-bottom:none}
-.risk-badge{
+.card-header:hover{background:var(--surface2)}
+.card-agent-icon{font-size:20px}
+.card-agent-info{flex:1}
+.card-agent-name{font-family:var(--display);font-size:13px;font-weight:700}
+.card-agent-desc{font-size:11px;color:var(--text3);margin-top:1px}
+.card-right{display:flex;align-items:center;gap:8px}
+.card-badge{
   font-family:var(--mono);font-size:8px;letter-spacing:1px;
-  padding:3px 8px;border-radius:2px;flex-shrink:0;margin-top:2px;
-  text-transform:uppercase;
+  padding:3px 8px;border-radius:3px;text-transform:uppercase;
 }
-.badge-high{background:rgba(255,107,107,0.15);color:var(--red);border:1px solid rgba(255,107,107,0.3)}
-.badge-medium{background:rgba(255,179,71,0.12);color:var(--amber);border:1px solid rgba(255,179,71,0.3)}
-.badge-low{background:rgba(78,203,141,0.1);color:var(--green);border:1px solid rgba(78,203,141,0.3)}
-.risk-name{font-size:14px;font-weight:600;margin-bottom:3px}
-.risk-mitigation{font-size:13px;color:var(--text2);font-style:italic}
+.badge-running{background:rgba(212,168,71,0.15);color:var(--gold2);border:1px solid rgba(212,168,71,0.3)}
+.badge-done{background:rgba(62,207,142,0.1);color:var(--green);border:1px solid rgba(62,207,142,0.25)}
+.badge-waiting{background:rgba(90,87,112,0.3);color:var(--text3);border:1px solid var(--border)}
+.badge-error{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.25)}
+.card-ms{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.card-chevron{font-size:12px;color:var(--text3);transition:transform 0.2s}
+.card-chevron.open{transform:rotate(180deg)}
 
-/* Final answer */
-.answer-text{
-  font-family:var(--serif);font-size:15px;line-height:1.8;
-  color:var(--text);white-space:pre-wrap;
+.card-body{padding:14px 16px;display:none}
+.card-body.open{display:block}
+
+/* Typing animation */
+.typing-cursor{
+  display:inline-block;width:2px;height:14px;
+  background:var(--gold2);margin-left:2px;vertical-align:middle;
+  animation:blink 0.8s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Output sections */
+.output-section{margin-bottom:14px}
+.output-section:last-child{margin-bottom:0}
+.output-label{
+  font-family:var(--mono);font-size:9px;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--text3);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.output-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.output-text{
+  font-size:13px;color:var(--text2);line-height:1.7;
+  white-space:pre-wrap;word-wrap:break-word;
 }
 
-/* Loading */
-.loading-wrap{
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;min-height:300px;gap:16px;
-}
-.loading-agents{display:flex;gap:12px}
-.loading-dot{
-  width:8px;height:8px;border-radius:50%;
-  background:var(--gold);
-  animation:loadBounce 1.2s infinite;
-}
-.loading-dot:nth-child(2){animation-delay:0.2s}
-.loading-dot:nth-child(3){animation-delay:0.4s}
-.loading-dot:nth-child(4){animation-delay:0.6s}
-.loading-dot:nth-child(5){animation-delay:0.8s}
-@keyframes loadBounce{0%,80%,100%{transform:translateY(0);opacity:0.3}40%{transform:translateY(-10px);opacity:1}}
-.loading-text{font-family:var(--mono);font-size:11px;color:var(--text3);letter-spacing:1px}
-
-/* Domain badge */
-.domain-badge{
+/* Domain chip */
+.domain-chip{
   display:inline-block;font-family:var(--mono);font-size:9px;
   letter-spacing:1px;text-transform:uppercase;
-  padding:3px 10px;border-radius:2px;margin-left:8px;
-  background:rgba(201,168,76,0.12);color:var(--gold);
-  border:1px solid rgba(201,168,76,0.25);
+  padding:3px 10px;border-radius:3px;
+  background:rgba(68,136,255,0.12);color:var(--blue2);
+  border:1px solid rgba(68,136,255,0.25);
 }
+
+/* Doc cards */
+.doc-mini{
+  background:var(--bg3);border:1px solid var(--border);
+  border-left:3px solid var(--gold);border-radius:var(--r);
+  padding:9px 12px;margin-bottom:7px;
+}
+.doc-mini-title{font-family:var(--mono);font-size:10px;color:var(--gold2);margin-bottom:3px}
+.doc-mini-sector{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.doc-mini-excerpt{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* Risk cards */
+.risk-card{
+  display:flex;gap:10px;padding:8px 0;
+  border-bottom:1px solid var(--border);
+}
+.risk-card:last-child{border-bottom:none}
+.risk-sev{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  padding:3px 7px;border-radius:3px;flex-shrink:0;height:fit-content;
+  text-transform:uppercase;
+}
+.sev-high{background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.25)}
+.sev-medium{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.25)}
+.sev-low{background:rgba(62,207,142,0.1);color:var(--green);border:1px solid rgba(62,207,142,0.2)}
+.risk-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.risk-mit{font-size:12px;color:var(--text2);font-style:italic}
+
+/* Final answer */
+.final-text{
+  font-size:14px;line-height:1.8;color:var(--text);
+  white-space:pre-wrap;word-wrap:break-word;
+}
+
+/* Feedback */
+.feedback-row{
+  display:flex;align-items:center;gap:8px;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--border);
+}
+.fb-label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
+.fb-btn{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);padding:5px 12px;cursor:pointer;
+  font-size:13px;color:var(--text2);transition:all 0.15s;
+}
+.fb-btn:hover{background:var(--surface);color:var(--text)}
+.fb-btn.up{border-color:var(--green);color:var(--green);background:rgba(62,207,142,0.08)}
+.fb-btn.down{border-color:var(--red);color:var(--red);background:rgba(248,113,113,0.08)}
+.fb-thanks{font-family:var(--mono);font-size:10px;color:var(--green)}
+
+/* HITL */
+.hitl-banner{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);
+  border-radius:var(--r);padding:10px 14px;margin-top:12px;
+}
+.hitl-icon{font-size:16px;flex-shrink:0}
+.hitl-text{font-size:12px;color:var(--amber);line-height:1.5}
+
+/* Summary bar */
+.summary-bar{
+  background:var(--bg3);border-top:1px solid var(--border);
+  padding:12px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+}
+.sum-item{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--text3)}
+.sum-dot{width:7px;height:7px;border-radius:50%}
+.sum-val{color:var(--text2);font-weight:700}
 
 /* Toast */
 #toast{
-  position:fixed;bottom:24px;right:24px;
-  background:var(--surface);border:1px solid var(--border2);
-  border-radius:3px;padding:10px 16px;font-family:var(--mono);font-size:11px;
+  position:fixed;bottom:20px;right:20px;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--r);padding:9px 16px;font-family:var(--mono);font-size:11px;
   z-index:1000;transform:translateY(60px);opacity:0;transition:all 0.3s;
 }
 #toast.show{transform:translateY(0);opacity:1}
-#toast.error{border-color:var(--red);color:var(--red)}
 #toast.success{border-color:var(--green);color:var(--green)}
+#toast.error{border-color:var(--red);color:var(--red)}
 
-/* Scrollbar */
 ::-webkit-scrollbar{width:4px;height:4px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
 </style>
 </head>
 <body>
+<div class="progress-bar" id="progress-bar"></div>
 
 <!-- HEADER -->
 <div class="header">
-  <div class="header-top">
+  <div class="brand">
+    <div class="brand-icon">⚙️</div>
     <div>
-      <div class="header-eyebrow">LangGraph · 5-Agent Pipeline · International Development</div>
-      <div class="header-title">Multiagent<br>Workflow Simulator</div>
-      <div class="header-sub">Orchestrated retrieval, reasoning, risk analysis, and synthesis for World Bank sector queries</div>
+      <div class="brand-title">Multiagent Workflow Simulator</div>
+      <div class="brand-sub">LangGraph · 5-Agent Pipeline · World Bank ITSEF</div>
     </div>
-    <div class="header-badge">Portfolio Demo · v1.0</div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-blue">LangGraph</span>
+    <span class="badge badge-gold">GPT-4o-mini</span>
+    <span class="badge badge-green">Live Pipeline</span>
   </div>
 </div>
 
-<!-- PIPELINE VISUALIZER -->
-<div class="pipeline">
-  <div class="pipe-agent">
-    <div class="pipe-node" id="node-router">
-      <div class="pipe-icon">🧭</div>
-      <div class="pipe-label">Router</div>
-      <div class="pipe-status">Detects domain</div>
-    </div>
+<!-- PIPELINE STRIP -->
+<div class="pipeline-strip">
+  <div class="pipe-node idle" id="pipe-router">
+    <span class="pipe-ms" id="ms-router"></span>
+    <div class="pipe-icon">🧭</div>
+    <div class="pipe-name">Router</div>
+    <div class="pipe-status" id="ps-router">Waiting</div>
   </div>
-  <div class="pipe-arrow">──▶</div>
-  <div class="pipe-agent">
-    <div class="pipe-node" id="node-retrieval">
-      <div class="pipe-icon">📚</div>
-      <div class="pipe-label">Retrieval</div>
-      <div class="pipe-status">Fetches docs</div>
-    </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-retrieval">
+    <span class="pipe-ms" id="ms-retrieval"></span>
+    <div class="pipe-icon">📚</div>
+    <div class="pipe-name">Retrieval</div>
+    <div class="pipe-status" id="ps-retrieval">Waiting</div>
   </div>
-  <div class="pipe-arrow">──▶</div>
-  <div class="pipe-agent">
-    <div class="pipe-node" id="node-reasoning">
-      <div class="pipe-icon">🧠</div>
-      <div class="pipe-label">Reasoning</div>
-      <div class="pipe-status">Analyzes</div>
-    </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-reasoning">
+    <span class="pipe-ms" id="ms-reasoning"></span>
+    <div class="pipe-icon">🧠</div>
+    <div class="pipe-name">Reasoning</div>
+    <div class="pipe-status" id="ps-reasoning">Waiting</div>
   </div>
-  <div class="pipe-arrow">──▶</div>
-  <div class="pipe-agent">
-    <div class="pipe-node" id="node-risk">
-      <div class="pipe-icon">⚠️</div>
-      <div class="pipe-label">Risk</div>
-      <div class="pipe-status">Flags risks</div>
-    </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-risk">
+    <span class="pipe-ms" id="ms-risk"></span>
+    <div class="pipe-icon">⚠️</div>
+    <div class="pipe-name">Risk</div>
+    <div class="pipe-status" id="ps-risk">Waiting</div>
   </div>
-  <div class="pipe-arrow">──▶</div>
-  <div class="pipe-agent">
-    <div class="pipe-node" id="node-synthesis">
-      <div class="pipe-icon">✍️</div>
-      <div class="pipe-label">Synthesis</div>
-      <div class="pipe-status">Final answer</div>
-    </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-synthesis">
+    <span class="pipe-ms" id="ms-synthesis"></span>
+    <div class="pipe-icon">✍️</div>
+    <div class="pipe-name">Synthesis</div>
+    <div class="pipe-status" id="ps-synthesis">Waiting</div>
   </div>
+  <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap" id="total-time"></div>
 </div>
 
-<!-- MAIN -->
-<div class="main">
+<!-- MAIN LAYOUT -->
+<div class="layout">
 
-  <!-- LEFT -->
-  <div class="left">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
 
     <!-- API Key -->
-    <div>
-      <div class="panel-label">OpenAI API Key</div>
+    <div class="sidebar-section">
+      <div class="section-label">Configuration</div>
+      <div class="field-label">OpenAI API Key</div>
       <input type="password" class="api-input" id="api-key" placeholder="sk-..." />
     </div>
 
-    <!-- Query input -->
-    <div>
-      <div class="panel-label">Your Query</div>
+    <!-- Query -->
+    <div class="sidebar-section">
+      <div class="section-label">Your Query</div>
       <div class="query-wrap">
-        <textarea id="query-input" placeholder="Ask about sector lessons, project risks, operational insights…" oninput="updateChar(this)"></textarea>
-        <div class="query-footer">
-          <span class="char-count" id="char-count">0 chars</span>
-          <button class="run-btn" id="run-btn" onclick="runPipeline()">RUN AGENTS</button>
-        </div>
+        <textarea id="query-input" placeholder="Ask about sector lessons, project risks, or compare across sectors…"></textarea>
       </div>
+      <button class="run-btn" id="run-btn" onclick="runPipeline()">
+        <span>▶ RUN PIPELINE</span>
+      </button>
+      <button class="reset-btn" onclick="resetAll()">↺ Reset</button>
     </div>
 
     <!-- Sample queries -->
-    <div>
-      <div class="panel-label">Sample Queries</div>
-      <button class="sample-chip" onclick="useQuery(this)">
-        <span class="sample-sector">Transport</span>
-        What are the key lessons on community ownership in rural road maintenance?
+    <div class="sidebar-section">
+      <div class="section-label">Sample Queries</div>
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">Transport</span>
+        What are the key lessons on community ownership in rural road maintenance projects?
       </button>
-      <button class="sample-chip" onclick="useQuery(this)">
-        <span class="sample-sector">WASH</span>
-        How should water tariff reform be sequenced to avoid public resistance?
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">WASH</span>
+        How should water tariff reform be sequenced to avoid community resistance?
       </button>
-      <button class="sample-chip" onclick="useQuery(this)">
-        <span class="sample-sector">Agriculture</span>
-        What digital tools have worked for smallholder farmers in low-connectivity areas?
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">FCS</span>
+        What adaptive design features predict success in fragile and conflict-affected states?
       </button>
-      <button class="sample-chip" onclick="useQuery(this)">
-        <span class="sample-sector">FCS</span>
-        What project design features predict success in fragile and conflict-affected states?
+      <button class="chip highlight" onclick="useChip(this)">
+        <span class="chip-tag">⚡ Cross-Sector Compare</span>
+        Compare how Transport and WASH projects handled community engagement differently — what worked in each and why?
       </button>
-      <button class="sample-chip" onclick="useQuery(this)">
-        <span class="sample-sector">Education</span>
-        Why do teacher deployment bottlenecks occur and how are they resolved?
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">Education</span>
+        Why do teacher deployment bottlenecks occur and how have projects resolved them?
       </button>
     </div>
 
-    <!-- Info -->
-    <div style="border-top:1px solid var(--border);padding-top:16px">
-      <div class="panel-label">Pipeline</div>
-      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2">
-        <div>① Router → detects domain</div>
-        <div>② Retrieval → fetches sector docs</div>
-        <div>③ Reasoning → extracts insights</div>
-        <div>④ Risk → flags project risks</div>
-        <div>⑤ Synthesis → final response</div>
+    <!-- How it works -->
+    <div class="sidebar-section">
+      <div class="section-label">How It Works</div>
+      <div class="step-list">
+        <div><span>①</span> Router detects domain</div>
+        <div><span>②</span> Retrieval fetches real docs</div>
+        <div><span>③</span> Reasoning extracts insights</div>
+        <div><span>④</span> Risk flags project risks</div>
+        <div><span>⑤</span> Synthesis writes final answer</div>
+      </div>
+      <div style="margin-top:12px;font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.8;border-top:1px solid var(--border);padding-top:10px">
+        Each agent card expands to show its<br>full output. Click any card to inspect.
+      </div>
+    </div>
+
+    <!-- Connected to -->
+    <div class="sidebar-section" style="margin-top:auto">
+      <div class="section-label">Connected To</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text3);line-height:2">
+        <div>🌐 Sector AI Agent backend</div>
+        <div>🗄️ Real FAISS vector store</div>
+        <div>📊 Supabase observability</div>
       </div>
     </div>
 
   </div>
 
-  <!-- RIGHT -->
-  <div class="right" id="right-panel">
-    <div class="welcome" id="welcome-screen">
-      <div class="welcome-icon">⚙️</div>
-      <div class="welcome-title">Ready to Simulate</div>
-      <div class="welcome-sub">Enter your API key, type a query or pick a sample, then click Run Agents to watch the pipeline execute.</div>
-    </div>
-  </div>
+  <!-- MAIN PANEL -->
+  <div class="main" id="main-panel">
 
+    <!-- Welcome -->
+    <div class="welcome" id="welcome">
+      <div class="welcome-glow">⚙️</div>
+      <h2>Watch the agents think</h2>
+      <p>Each agent in the pipeline runs step by step — you can see exactly what each one does, how long it takes, and what it produces. Built to make multi-agent AI understandable to anyone.</p>
+      <div class="welcome-steps">
+        <span class="welcome-step">Enter API key</span>
+        <span class="welcome-step">Pick a query</span>
+        <span class="welcome-step">Click Run Pipeline</span>
+        <span class="welcome-step">Watch agents work</span>
+      </div>
+    </div>
+
+    <!-- Agents area (hidden until run) -->
+    <div class="agents-area" id="agents-area" style="display:none"></div>
+
+    <!-- Summary bar (hidden until done) -->
+    <div class="summary-bar" id="summary-bar" style="display:none">
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--green)"></div>
+        <span>Total time:</span><span class="sum-val" id="sum-time">—</span>
+      </div>
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--blue)"></div>
+        <span>Sources:</span><span class="sum-val" id="sum-sources">—</span>
+      </div>
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--red)"></div>
+        <span>Risks:</span><span class="sum-val" id="sum-risks">—</span>
+      </div>
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--gold)"></div>
+        <span>Domain:</span><span class="sum-val" id="sum-domain">—</span>
+      </div>
+      <div class="sum-item" style="margin-left:auto">
+        <div class="sum-dot" style="background:var(--purple)"></div>
+        <span>Pipeline:</span><span class="sum-val">LangGraph 5-Agent</span>
+      </div>
+    </div>
+
+  </div>
 </div>
 
 <div id="toast"></div>
 
 <script>
-const API_BASE = 'https://multiagent-simulator.onrender.com';
-const NODES = ['router','retrieval','reasoning','risk','synthesis'];
+// ── Config ────────────────────────────────────────────────────────────────────
+const API = 'https://sector-ai-agent.onrender.com';
 
-function updateChar(el) {
-  document.getElementById('char-count').textContent = el.value.length + ' chars';
-}
+const AGENTS = [
+  { key:'router',    icon:'🧭', name:'Router Agent',    desc:'Detects sector domain and plans retrieval strategy' },
+  { key:'retrieval', icon:'📚', name:'Retrieval Agent', desc:'Fetches relevant documents from FAISS vector store' },
+  { key:'reasoning', icon:'🧠', name:'Reasoning Agent', desc:'Analyzes documents and extracts structured insights' },
+  { key:'risk',      icon:'⚠️', name:'Risk Agent',      desc:'Identifies operational risks with severity ratings' },
+  { key:'synthesis', icon:'✍️', name:'Synthesis Agent', desc:'Synthesizes final grounded response with citations' },
+];
 
-function useQuery(btn) {
-  const text = btn.innerText.replace(/^[A-Z\s]+\n/,'').trim();
-  document.getElementById('query-input').value = text;
-  updateChar(document.getElementById('query-input'));
-}
+let isRunning = false;
+let expandedCards = new Set();
 
+// ── Utility ───────────────────────────────────────────────────────────────────
 function showToast(msg, type='info') {
   const t = document.getElementById('toast');
   t.textContent = msg; t.className = `show ${type}`;
-  clearTimeout(t._t);
-  t._t = setTimeout(() => t.className = '', 3000);
+  clearTimeout(t._t); t._t = setTimeout(() => t.className = '', 3000);
 }
 
-function resetPipeline() {
-  NODES.forEach(n => {
-    const el = document.getElementById(`node-${n}`);
-    el.className = 'pipe-node';
-    el.querySelector('.pipe-status').textContent = {
-      router:'Detects domain', retrieval:'Fetches docs',
-      reasoning:'Analyzes', risk:'Flags risks', synthesis:'Final answer'
-    }[n];
-  });
+function setProgress(pct) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => document.getElementById('progress-bar').style.width = '0%', 500);
 }
 
-function activateNode(name, status='Running…') {
-  const el = document.getElementById(`node-${name}`);
-  el.className = 'pipe-node active';
-  el.querySelector('.pipe-status').textContent = status;
+function setPipeNode(key, state, ms) {
+  const node = document.getElementById(`pipe-${key}`);
+  const status = document.getElementById(`ps-${key}`);
+  const msEl = document.getElementById(`ms-${key}`);
+  node.className = `pipe-node ${state}`;
+  status.textContent = state === 'running' ? 'Running…' : state === 'done' ? 'Done' : state === 'error' ? 'Error' : 'Waiting';
+  if (ms && state === 'done') msEl.textContent = ms + 'ms';
 }
 
-function doneNode(name, status='Done') {
-  const el = document.getElementById(`node-${name}`);
-  el.className = 'pipe-node done';
-  el.querySelector('.pipe-status').textContent = status;
+function useChip(btn) {
+  const text = btn.innerText.replace(/^[^\n]+\n/, '').trim();
+  document.getElementById('query-input').value = text;
 }
 
+function resetAll() {
+  AGENTS.forEach(a => setPipeNode(a.key, 'idle'));
+  document.getElementById('agents-area').innerHTML = '';
+  document.getElementById('agents-area').style.display = 'none';
+  document.getElementById('summary-bar').style.display = 'none';
+  document.getElementById('welcome').style.display = 'flex';
+  document.getElementById('total-time').textContent = '';
+  document.getElementById('run-btn').disabled = false;
+  isRunning = false;
+}
+
+// ── Agent cards ───────────────────────────────────────────────────────────────
+function createAgentCard(agent, status='waiting') {
+  const card = document.createElement('div');
+  card.className = `agent-card ${status}`;
+  card.id = `card-${agent.key}`;
+  card.innerHTML = `
+    <div class="card-header" onclick="toggleCard('${agent.key}')">
+      <div class="card-agent-icon">${agent.icon}</div>
+      <div class="card-agent-info">
+        <div class="card-agent-name">${agent.name}</div>
+        <div class="card-agent-desc">${agent.desc}</div>
+      </div>
+      <div class="card-right">
+        <span class="card-badge badge-waiting" id="badge-${agent.key}">Waiting</span>
+        <span class="card-ms" id="cardms-${agent.key}"></span>
+        <span class="card-chevron" id="chev-${agent.key}">▾</span>
+      </div>
+    </div>
+    <div class="card-body" id="body-${agent.key}"></div>
+  `;
+  return card;
+}
+
+function toggleCard(key) {
+  const body = document.getElementById(`body-${key}`);
+  const chev = document.getElementById(`chev-${key}`);
+  if (body.classList.contains('open')) {
+    body.classList.remove('open');
+    chev.classList.remove('open');
+    expandedCards.delete(key);
+  } else {
+    body.classList.add('open');
+    chev.classList.add('open');
+    expandedCards.add(key);
+  }
+}
+
+function setCardRunning(key) {
+  const card = document.getElementById(`card-${key}`);
+  card.className = 'agent-card running';
+  const badge = document.getElementById(`badge-${key}`);
+  badge.className = 'card-badge badge-running';
+  badge.textContent = 'Running…';
+  // Auto-expand running card
+  const body = document.getElementById(`body-${key}`);
+  body.classList.add('open');
+  document.getElementById(`chev-${key}`).classList.add('open');
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;color:var(--gold2);font-family:var(--mono);font-size:11px"><span>Processing</span><span class="typing-cursor"></span></div>`;
+}
+
+function setCardDone(key, ms) {
+  const card = document.getElementById(`card-${key}`);
+  card.className = 'agent-card done';
+  const badge = document.getElementById(`badge-${key}`);
+  badge.className = 'card-badge badge-done';
+  badge.textContent = '✓ Done';
+  document.getElementById(`cardms-${key}`).textContent = ms + 'ms';
+}
+
+function setCardError(key) {
+  const card = document.getElementById(`card-${key}`);
+  card.className = 'agent-card error';
+  document.getElementById(`badge-${key}`).className = 'card-badge badge-error';
+  document.getElementById(`badge-${key}`).textContent = 'Error';
+}
+
+// ── Populate card bodies ───────────────────────────────────────────────────────
+function populateRouter(data) {
+  document.getElementById('body-router').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Domain detected</div>
+      <span class="domain-chip">${data.domain}</span>
+    </div>
+    <div class="output-section">
+      <div class="output-label">Routing decision</div>
+      <div class="output-text">Query classified as <strong>${data.domain}</strong> sector. Retrieval agent will search FAISS index for relevant sector documents and cross-cutting knowledge.</div>
+    </div>`;
+}
+
+function populateRetrieval(docs) {
+  const html = docs.map(d => `
+    <div class="doc-mini">
+      <div class="doc-mini-sector">${d.sector || 'Sector document'}</div>
+      <div class="doc-mini-title">📄 ${(d.source||'Document').split('/').pop()}</div>
+      <div class="doc-mini-excerpt">${escHtml((d.snippet||d.content||'').slice(0,160))}…</div>
+    </div>`).join('');
+  document.getElementById('body-retrieval').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">${docs.length} documents retrieved via MMR</div>
+      ${html}
+    </div>`;
+}
+
+function populateReasoning(reasoning) {
+  document.getElementById('body-reasoning').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Structured analysis</div>
+      <div class="output-text">${escHtml(reasoning)}</div>
+    </div>`;
+}
+
+function populateRisk(risks) {
+  const cards = risks.map(r => `
+    <div class="risk-card">
+      <span class="risk-sev sev-${r.severity.toLowerCase()}">${r.severity}</span>
+      <div>
+        <div class="risk-name">${escHtml(r.risk)}</div>
+        <div class="risk-mit">${escHtml(r.mitigation)}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('body-risk').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">${risks.length} risks identified</div>
+      ${cards}
+    </div>`;
+}
+
+function populateSynthesis(answer, sources) {
+  const msgId = 'fb-' + Date.now();
+  const srcList = sources.slice(0,4).map(s =>
+    `<div style="font-family:var(--mono);font-size:9px;color:var(--text3);padding:3px 0;border-bottom:1px solid var(--border)">📄 ${(s.source||'').split('/').pop()} · p.${s.page||'N/A'}</div>`
+  ).join('');
+
+  document.getElementById('body-synthesis').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Sources used</div>
+      ${srcList}
+    </div>
+    <div class="output-section">
+      <div class="output-label">Final response</div>
+      <div class="final-text">${escHtml(answer)}</div>
+    </div>
+    <div class="feedback-row" id="${msgId}">
+      <span class="fb-label">Was this helpful?</span>
+      <button class="fb-btn" onclick="submitFb('${msgId}',1,this)">👍</button>
+      <button class="fb-btn" onclick="submitFb('${msgId}',-1,this)">👎</button>
+    </div>`;
+}
+
+async function submitFb(id, rating, btn) {
+  const row = document.getElementById(id);
+  row.querySelectorAll('.fb-btn').forEach(b => b.classList.remove('up','down'));
+  btn.classList.add(rating === 1 ? 'up' : 'down');
+  try {
+    await fetch(`${API}/feedback`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rating, message_id: id}),
+    });
+  } catch(e) {}
+  setTimeout(() => row.innerHTML = '<span class="fb-thanks">✓ Thanks for your feedback</span>', 600);
+}
+
+// ── Main pipeline runner ──────────────────────────────────────────────────────
 async function runPipeline() {
   const key   = document.getElementById('api-key').value.trim();
   const query = document.getElementById('query-input').value.trim();
-
   if (!key)   { showToast('Enter your OpenAI API key', 'error'); return; }
   if (!query) { showToast('Enter a query first', 'error'); return; }
+  if (isRunning) return;
 
+  isRunning = true;
   document.getElementById('run-btn').disabled = true;
-  document.getElementById('welcome-screen')?.remove();
-  resetPipeline();
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('summary-bar').style.display = 'none';
 
-  // Show loading
-  const right = document.getElementById('right-panel');
-  right.innerHTML = `
-    <div class="loading-wrap">
-      <div class="loading-agents">
-        <div class="loading-dot"></div>
-        <div class="loading-dot"></div>
-        <div class="loading-dot"></div>
-        <div class="loading-dot"></div>
-        <div class="loading-dot"></div>
-      </div>
-      <div class="loading-text">AGENTS RUNNING — PLEASE WAIT</div>
-    </div>`;
+  // Reset pipeline strip
+  AGENTS.forEach(a => setPipeNode(a.key, 'idle'));
+  document.getElementById('total-time').textContent = '';
 
-  // Animate pipeline nodes progressively
-  const delays = [0, 500, 2000, 4000, 6000];
-  NODES.forEach((n, i) => {
-    setTimeout(() => activateNode(n), delays[i]);
-    setTimeout(() => doneNode(n), delays[i] + 400);
-  });
+  // Build agent cards
+  const area = document.getElementById('agents-area');
+  area.style.display = 'flex';
+  area.innerHTML = '';
+  AGENTS.forEach(a => area.appendChild(createAgentCard(a)));
+
+  setProgress(10);
+  const t0 = Date.now();
+
+  // Animate pipeline nodes as we go (simulated progression while waiting for API)
+  const nodeTimings = [0, 300, 800, 1400, 2200];
+  AGENTS.forEach((a, i) => setTimeout(() => {
+    setPipeNode(a.key, 'running');
+    setCardRunning(a.key);
+  }, nodeTimings[i]));
+
+  setProgress(30);
 
   try {
-    const res = await fetch(`${API_BASE}/run`, {
+    const res = await fetch(`${API}/query`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-API-Key': key },
-      body: JSON.stringify({ query, api_key: key }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: query, use_pipeline: true }),
     });
 
     if (!res.ok) {
@@ -535,107 +788,70 @@ async function runPipeline() {
     }
 
     const data = await res.json();
-    NODES.forEach(n => doneNode(n, '✓ Done'));
-    renderResults(data);
+    const totalMs = Date.now() - t0;
+    setProgress(90);
+
+    // Populate cards from trace
+    const trace = data.agent_trace || [];
+    const traceMap = {};
+    trace.forEach(t => {
+      const key = t.agent.toLowerCase().split(' ')[0];
+      traceMap[key] = t;
+    });
+
+    // Mark all done with real timings
+    AGENTS.forEach((a, i) => {
+      const t = trace[i];
+      const ms = t ? t.duration_ms : 0;
+      setPipeNode(a.key, 'done', ms);
+      setCardDone(a.key, ms);
+    });
+
+    // Populate each card body
+    populateRouter(data);
+    populateRetrieval(data.retrieved_docs || []);
+    populateReasoning(data.reasoning || data.analysis || '');
+    populateRisk(data.risks || []);
+    populateSynthesis(data.final_answer || '', data.sources || []);
+
+    // Auto-expand synthesis
+    const synthBody = document.getElementById('body-synthesis');
+    synthBody.classList.add('open');
+    document.getElementById('chev-synthesis').classList.add('open');
+
+    // Summary bar
+    document.getElementById('sum-time').textContent = totalMs + 'ms';
+    document.getElementById('sum-sources').textContent = (data.retrieved_docs||[]).length;
+    document.getElementById('sum-risks').textContent = (data.risks||[]).length;
+    document.getElementById('sum-domain').textContent = data.domain || '—';
+    document.getElementById('total-time').textContent = `Total: ${totalMs}ms`;
+    document.getElementById('summary-bar').style.display = 'flex';
+
+    setProgress(100);
     showToast('Pipeline complete ✓', 'success');
 
-  } catch(e) {
-    NODES.forEach(n => {
-      document.getElementById(`node-${n}`).className = 'pipe-node';
-    });
-    right.innerHTML = `<div class="welcome"><div class="welcome-icon">⚠️</div>
-      <div class="welcome-title" style="color:var(--red)">Pipeline Error</div>
-      <div class="welcome-sub">${e.message}</div></div>`;
-    showToast('Error: ' + e.message, 'error');
+  } catch(err) {
+    AGENTS.forEach(a => { setPipeNode(a.key, 'error'); setCardError(a.key); });
+    const area = document.getElementById('agents-area');
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'padding:20px;text-align:center;color:var(--red);font-family:var(--mono);font-size:12px';
+    errDiv.textContent = '⚠ ' + err.message;
+    area.appendChild(errDiv);
+    setProgress(100);
+    showToast('Error: ' + err.message, 'error');
   }
 
   document.getElementById('run-btn').disabled = false;
-}
-
-function renderResults(data) {
-  const right = document.getElementById('right-panel');
-  const totalMs = data.agent_trace.reduce((a,t)=>a+t.duration_ms,0);
-
-  right.innerHTML = `
-    <!-- AGENT TRACE -->
-    <div class="result-section">
-      <div class="section-header">
-        <span class="section-icon">⚡</span>
-        <span class="section-title">Agent Trace</span>
-        <span class="domain-badge">${data.domain}</span>
-        <span class="section-meta">${totalMs}ms total</span>
-      </div>
-      <div class="section-body">
-        ${data.agent_trace.map((t,i)=>`
-          <div class="trace-step">
-            <div class="trace-num">0${i+1}</div>
-            <div>
-              <div class="trace-agent">${t.agent}</div>
-              <div class="trace-output">${escHtml(t.output_summary)}</div>
-              <div class="trace-ms">${t.duration_ms}ms · ${t.timestamp.slice(11,19)}</div>
-            </div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <!-- RETRIEVED DOCS -->
-    <div class="result-section">
-      <div class="section-header">
-        <span class="section-icon">📚</span>
-        <span class="section-title">Retrieved Documents</span>
-        <span class="section-meta">${data.retrieved_docs.length} sources</span>
-      </div>
-      <div class="section-body">
-        ${data.retrieved_docs.map(d=>`
-          <div class="doc-card">
-            <div class="doc-sector">${d.sector}</div>
-            <div class="doc-title">${escHtml(d.title)}</div>
-            <div class="doc-excerpt">${escHtml(d.content.slice(0,180))}…</div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <!-- RISKS -->
-    <div class="result-section">
-      <div class="section-header">
-        <span class="section-icon">⚠️</span>
-        <span class="section-title">Risk Assessment</span>
-        <span class="section-meta">${data.risks.length} risks identified</span>
-      </div>
-      <div class="section-body">
-        ${data.risks.map(r=>`
-          <div class="risk-card">
-            <div class="risk-badge badge-${r.severity.toLowerCase()}">${r.severity}</div>
-            <div>
-              <div class="risk-name">${escHtml(r.risk)}</div>
-              <div class="risk-mitigation">${escHtml(r.mitigation)}</div>
-            </div>
-          </div>`).join('')}
-      </div>
-    </div>
-
-    <!-- FINAL ANSWER -->
-    <div class="result-section">
-      <div class="section-header">
-        <span class="section-icon">✍️</span>
-        <span class="section-title">Synthesized Response</span>
-        <span class="section-meta">gpt-4o-mini</span>
-      </div>
-      <div class="section-body">
-        <div class="answer-text">${escHtml(data.final_answer)}</div>
-      </div>
-    </div>
-  `;
+  isRunning = false;
 }
 
 function escHtml(str) {
-  return String(str)
+  return String(str||'')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-// Enter key support
-document.addEventListener('keydown', e => {
+document.getElementById('query-input').addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.ctrlKey) runPipeline();
 });
 </script>
