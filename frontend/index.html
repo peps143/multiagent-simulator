@@ -1,601 +1,1054 @@
-"""
-Sector AI Agent — Multi-Agent Pipeline (LangGraph)
-Real-world architecture with parallel execution for comparison queries.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Multiagent Workflow Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;500;700&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090f;--bg2:#0f0f17;--bg3:#15151f;
+  --surface:#1a1a26;--surface2:#21212f;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+  --text:#eeeaf8;--text2:#9693aa;--text3:#5a5770;
+  --gold:#d4a847;--gold2:#f0c75a;
+  --blue:#4488ff;--blue2:#6aa3ff;
+  --green:#3ecf8e;--red:#f87171;--amber:#fbbf24;--purple:#a78bfa;--teal:#2dd4bf;
+  --mono:'Space Mono',monospace;--display:'Syne',sans-serif;--body:'DM Sans',sans-serif;
+  --r:6px;--r2:10px;
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
 
-Standard pipeline (5 agents):
-  Router → Retrieval → Reasoning → Risk → Synthesis
+/* HEADER */
+.header{
+  background:linear-gradient(135deg,#0d0d1a 0%,#0a0a14 100%);
+  border-bottom:1px solid var(--border);
+  padding:20px 32px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
+  position:relative;overflow:hidden;
+}
+.header::after{
+  content:'';position:absolute;top:0;left:0;right:0;bottom:0;
+  background:radial-gradient(ellipse at 20% 50%,rgba(68,136,255,0.06) 0%,transparent 60%);
+  pointer-events:none;
+}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-icon{
+  width:38px;height:38px;border-radius:10px;
+  background:linear-gradient(135deg,var(--blue) 0%,var(--purple) 100%);
+  display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;
+}
+.brand-title{font-family:var(--display);font-size:17px;font-weight:800;letter-spacing:-0.3px}
+.brand-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+.header-badges{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:3px;border:1px solid}
+.badge-blue{border-color:rgba(68,136,255,0.35);color:var(--blue2);background:rgba(68,136,255,0.08)}
+.badge-gold{border-color:rgba(212,168,71,0.35);color:var(--gold2);background:rgba(212,168,71,0.08)}
+.badge-green{border-color:rgba(62,207,142,0.35);color:var(--green);background:rgba(62,207,142,0.08)}
 
-Comparison pipeline (6 agents, parallel branches):
-  Router → [Transport Agent || WASH Agent] → Comparison → Risk → Synthesis
-"""
+/* PROGRESS BAR */
+.progress-bar{height:2px;background:linear-gradient(90deg,var(--blue),var(--purple),var(--teal));width:0%;transition:width 0.4s;position:fixed;top:0;left:0;z-index:999}
 
-import os
-import re
-import json
-import time
-from typing import TypedDict, Literal
-from datetime import datetime
+/* PIPELINE STRIP */
+.pipeline-strip{
+  background:var(--bg2);border-bottom:1px solid var(--border);
+  padding:16px 32px;
+  display:flex;align-items:center;gap:4px;overflow-x:auto;
+}
+.pipe-node{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 14px;border-radius:var(--r);border:1px solid var(--border2);
+  background:var(--bg3);min-width:90px;flex-shrink:0;
+  transition:all 0.4s cubic-bezier(.4,0,.2,1);cursor:default;
+  position:relative;
+}
+.pipe-node.idle{opacity:0.45}
+.pipe-node.running{
+  border-color:var(--gold);background:rgba(212,168,71,0.08);
+  box-shadow:0 0 24px rgba(212,168,71,0.2);
+  animation:pulseBorder 1.5s infinite;
+}
+.pipe-node.done{border-color:var(--green);background:rgba(62,207,142,0.07);opacity:1}
+.pipe-node.error{border-color:var(--red);background:rgba(248,113,113,0.07);opacity:1}
+@keyframes pulseBorder{0%,100%{box-shadow:0 0 12px rgba(212,168,71,0.2)}50%{box-shadow:0 0 28px rgba(212,168,71,0.4)}}
+.pipe-icon{font-size:18px}
+.pipe-name{font-family:var(--mono);font-size:8px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2)}
+.pipe-status{font-size:9px;color:var(--text3);font-family:var(--mono)}
+.pipe-node.running .pipe-name{color:var(--gold2)}
+.pipe-node.running .pipe-status{color:var(--gold)}
+.pipe-node.done .pipe-name{color:var(--green)}
+.pipe-node.done .pipe-status{color:var(--green)}
+.pipe-ms{
+  position:absolute;top:-8px;right:-4px;
+  font-family:var(--mono);font-size:8px;
+  background:var(--green);color:#000;
+  padding:1px 5px;border-radius:3px;
+  opacity:0;transition:opacity 0.3s;
+}
+.pipe-node.done .pipe-ms{opacity:1}
+.pipe-connector{color:var(--text3);font-size:12px;padding:0 2px;flex-shrink:0;font-family:var(--mono)}
 
-from langchain_openai import ChatOpenAI
-from langchain.schema import HumanMessage, SystemMessage
-from langgraph.graph import StateGraph, END
+/* MAIN LAYOUT */
+.layout{display:grid;grid-template-columns:320px 1fr;min-height:calc(100vh - 130px)}
+@media(max-width:880px){.layout{grid-template-columns:1fr}}
 
-from rag_agent import AgentConfig, VectorStoreManager, DocumentIngestor, _seed_sample_knowledge
+/* SIDEBAR */
+.sidebar{
+  background:var(--bg2);border-right:1px solid var(--border);
+  overflow-y:auto;display:flex;flex-direction:column;
+}
+.sidebar-section{padding:18px 16px;border-bottom:1px solid var(--border)}
+.section-label{font-family:var(--mono);font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);margin-bottom:12px}
 
+/* API input */
+.field-label{font-size:11px;color:var(--text2);margin-bottom:5px;font-family:var(--mono)}
+.api-input{
+  width:100%;background:var(--bg3);border:1px solid var(--border2);
+  color:var(--text);padding:9px 12px;border-radius:var(--r);
+  font-family:var(--mono);font-size:11px;outline:none;
+  transition:border-color 0.2s;
+}
+.api-input:focus{border-color:var(--blue)}
 
-# ── Shared state ──────────────────────────────────────────────────────────────
-class AgentState(TypedDict):
-    query:            str
-    domain:           str
-    query_type:       str        # "standard" or "comparison"
-    sect_alpha:         str        # first sector for comparison
-    sect_beta:         str        # second sector for comparison
-    retrieved_docs:   list[dict] # standard retrieval
-    docs_sect_alpha:    list[dict] # parallel: sector A docs
-    docs_sect_beta:    list[dict] # parallel: sector B docs
-    analysis:         str        # standard reasoning output
-    output_alpha:       str        # parallel: sector A analysis
-    output_beta:       str        # parallel: sector B analysis
-    comparison:       str        # comparison agent output
-    risks:            list[dict]
-    final_answer:     str
-    agent_trace:      list[dict]
-    current_agent:    str
-    error:            str
+/* Query input */
+.query-wrap{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);overflow:hidden;transition:border-color 0.2s;
+}
+.query-wrap:focus-within{border-color:var(--blue)}
+#query-input{
+  width:100%;background:transparent;border:none;outline:none;
+  color:var(--text);font-family:var(--body);font-size:13px;
+  padding:12px 14px;resize:none;min-height:80px;line-height:1.6;
+}
+#query-input::placeholder{color:var(--text3);font-style:italic}
 
+/* Run button */
+.run-btn{
+  width:100%;padding:11px;border-radius:var(--r);
+  font-family:var(--display);font-size:15px;letter-spacing:2px;
+  background:linear-gradient(135deg,var(--blue) 0%,var(--purple) 100%);
+  color:#fff;border:none;cursor:pointer;margin-top:10px;
+  transition:all 0.2s;position:relative;overflow:hidden;
+}
+.run-btn::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--purple) 0%,var(--blue) 100%);
+  opacity:0;transition:opacity 0.3s;
+}
+.run-btn:hover::after{opacity:1}
+.run-btn span{position:relative;z-index:1}
+.run-btn:disabled{background:var(--bg3);color:var(--text3);cursor:not-allowed}
+.run-btn:disabled::after{display:none}
+.reset-btn{
+  width:100%;padding:8px;border-radius:var(--r);margin-top:6px;
+  font-family:var(--mono);font-size:10px;letter-spacing:1px;
+  background:transparent;color:var(--text3);border:1px solid var(--border);cursor:pointer;
+  transition:all 0.15s;
+}
+.reset-btn:hover{border-color:var(--border2);color:var(--text2)}
 
-# ── Domain detection ──────────────────────────────────────────────────────────
-DOMAIN_KEYWORDS = {
-    "Transport":     ["road","transport","bridge","highway","procurement","maintenance","rural road","contractor"],
-    "Agriculture":   ["agri","farm","crop","food","irrigation","extension","climate-smart","smallholder"],
-    "WASH":          ["water","sanitation","wash","tariff","nrw","hygiene","utility","non-revenue"],
-    "Education":     ["school","teacher","learning","education","literacy","curriculum","reading"],
-    "FCS":           ["fragile","conflict","fcs","post-conflict","humanitarian","displacement","adaptive"],
-    "Cross-Cutting": ["gender","climate","carbon","monitoring","capacity","sustainability"],
+/* Sample chips */
+.chip{
+  display:block;width:100%;text-align:left;
+  background:var(--bg3);border:1px solid var(--border);
+  color:var(--text2);padding:9px 11px;border-radius:var(--r);
+  font-size:12px;cursor:pointer;margin-bottom:6px;line-height:1.4;
+  transition:all 0.15s;font-family:var(--body);
+}
+.chip:hover{border-color:var(--blue);color:var(--text);background:rgba(68,136,255,0.06)}
+.chip-tag{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  text-transform:uppercase;color:var(--gold);display:block;margin-bottom:3px;
+}
+.chip.highlight{border-color:rgba(212,168,71,0.3);background:rgba(212,168,71,0.04)}
+.chip.highlight:hover{border-color:var(--gold);background:rgba(212,168,71,0.08)}
+.chip.highlight .chip-tag{color:var(--gold2)}
+
+/* How it works */
+.step-list{font-family:var(--mono);font-size:10px;color:var(--text3);line-height:2.2}
+.step-list span{color:var(--blue2)}
+
+/* MAIN PANEL */
+.main{display:flex;flex-direction:column;overflow:hidden}
+
+/* Welcome */
+.welcome{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;padding:40px 32px;gap:16px;
+}
+.welcome-glow{
+  width:80px;height:80px;border-radius:20px;
+  background:linear-gradient(135deg,rgba(68,136,255,0.2) 0%,rgba(167,139,250,0.2) 100%);
+  border:1px solid rgba(68,136,255,0.2);
+  display:flex;align-items:center;justify-content:center;font-size:36px;
+  box-shadow:0 0 40px rgba(68,136,255,0.1);
+}
+.welcome h2{font-family:var(--display);font-size:24px;font-weight:800;color:var(--text2)}
+.welcome p{color:var(--text3);max-width:380px;line-height:1.6;font-size:13px}
+.welcome-steps{
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;
+}
+.welcome-step{
+  font-family:var(--mono);font-size:9px;letter-spacing:1px;
+  padding:4px 10px;border-radius:3px;
+  background:var(--bg2);border:1px solid var(--border);color:var(--text3);
 }
 
-COMPARE_PAIRS = [
-    ("Transport", "WASH"),
-    ("Transport", "Agriculture"),
-    ("Transport", "Education"),
-    ("WASH", "Agriculture"),
-    ("WASH", "Education"),
-    ("Agriculture", "Education"),
-    ("FCS", "Transport"),
-    ("FCS", "WASH"),
-]
+/* Agent cards area */
+.agents-area{flex:1;overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:12px}
+
+/* Agent card */
+.agent-card{
+  background:var(--bg2);border:1px solid var(--border);
+  border-radius:var(--r2);overflow:hidden;
+  transition:border-color 0.3s;
+  animation:slideIn 0.4s ease both;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.agent-card.running{border-color:var(--gold)}
+.agent-card.done{border-color:rgba(62,207,142,0.3)}
+.agent-card.error{border-color:rgba(248,113,113,0.3)}
+
+.card-header{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;cursor:pointer;
+  background:var(--bg3);border-bottom:1px solid var(--border);
+  transition:background 0.15s;
+}
+.card-header:hover{background:var(--surface2)}
+.card-agent-icon{font-size:20px}
+.card-agent-info{flex:1}
+.card-agent-name{font-family:var(--display);font-size:13px;font-weight:700}
+.card-agent-desc{font-size:11px;color:var(--text3);margin-top:1px}
+.card-right{display:flex;align-items:center;gap:8px}
+.card-badge{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  padding:3px 8px;border-radius:3px;text-transform:uppercase;
+}
+.badge-running{background:rgba(212,168,71,0.15);color:var(--gold2);border:1px solid rgba(212,168,71,0.3)}
+.badge-done{background:rgba(62,207,142,0.1);color:var(--green);border:1px solid rgba(62,207,142,0.25)}
+.badge-waiting{background:rgba(90,87,112,0.3);color:var(--text3);border:1px solid var(--border)}
+.badge-error{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.25)}
+.card-ms{font-family:var(--mono);font-size:10px;color:var(--text3)}
+.card-chevron{font-size:12px;color:var(--text3);transition:transform 0.2s}
+.card-chevron.open{transform:rotate(180deg)}
+
+.card-body{padding:14px 16px;display:none}
+.card-body.open{display:block}
+
+/* Typing animation */
+.typing-cursor{
+  display:inline-block;width:2px;height:14px;
+  background:var(--gold2);margin-left:2px;vertical-align:middle;
+  animation:blink 0.8s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* Output sections */
+.output-section{margin-bottom:14px}
+.output-section:last-child{margin-bottom:0}
+.output-label{
+  font-family:var(--mono);font-size:9px;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--text3);margin-bottom:8px;
+  display:flex;align-items:center;gap:6px;
+}
+.output-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.output-text{
+  font-size:13px;color:var(--text2);line-height:1.7;
+  white-space:pre-wrap;word-wrap:break-word;
+}
+
+/* Domain chip */
+.domain-chip{
+  display:inline-block;font-family:var(--mono);font-size:9px;
+  letter-spacing:1px;text-transform:uppercase;
+  padding:3px 10px;border-radius:3px;
+  background:rgba(68,136,255,0.12);color:var(--blue2);
+  border:1px solid rgba(68,136,255,0.25);
+}
+
+/* Doc cards */
+.doc-mini{
+  background:var(--bg3);border:1px solid var(--border);
+  border-left:3px solid var(--gold);border-radius:var(--r);
+  padding:9px 12px;margin-bottom:7px;
+}
+.doc-mini-title{font-family:var(--mono);font-size:10px;color:var(--gold2);margin-bottom:3px}
+.doc-mini-sector{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.doc-mini-excerpt{font-size:12px;color:var(--text2);line-height:1.5}
+
+/* Risk cards */
+.risk-card{
+  display:flex;gap:10px;padding:8px 0;
+  border-bottom:1px solid var(--border);
+}
+.risk-card:last-child{border-bottom:none}
+.risk-sev{
+  font-family:var(--mono);font-size:8px;letter-spacing:1px;
+  padding:3px 7px;border-radius:3px;flex-shrink:0;height:fit-content;
+  text-transform:uppercase;
+}
+.sev-high{background:rgba(248,113,113,0.12);color:var(--red);border:1px solid rgba(248,113,113,0.25)}
+.sev-medium{background:rgba(251,191,36,0.1);color:var(--amber);border:1px solid rgba(251,191,36,0.25)}
+.sev-low{background:rgba(62,207,142,0.1);color:var(--green);border:1px solid rgba(62,207,142,0.2)}
+.risk-name{font-size:13px;font-weight:600;margin-bottom:2px}
+.risk-mit{font-size:12px;color:var(--text2);font-style:italic}
+
+/* Final answer */
+.final-text{
+  font-size:14px;line-height:1.8;color:var(--text);
+  white-space:pre-wrap;word-wrap:break-word;
+}
+
+/* Feedback */
+.feedback-row{
+  display:flex;align-items:center;gap:8px;
+  margin-top:14px;padding-top:12px;border-top:1px solid var(--border);
+}
+.fb-label{font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3)}
+.fb-btn{
+  background:var(--bg3);border:1px solid var(--border2);
+  border-radius:var(--r);padding:5px 12px;cursor:pointer;
+  font-size:13px;color:var(--text2);transition:all 0.15s;
+}
+.fb-btn:hover{background:var(--surface);color:var(--text)}
+.fb-btn.up{border-color:var(--green);color:var(--green);background:rgba(62,207,142,0.08)}
+.fb-btn.down{border-color:var(--red);color:var(--red);background:rgba(248,113,113,0.08)}
+.fb-thanks{font-family:var(--mono);font-size:10px;color:var(--green)}
+
+/* HITL */
+.hitl-banner{
+  display:flex;align-items:flex-start;gap:10px;
+  background:rgba(251,191,36,0.07);border:1px solid rgba(251,191,36,0.25);
+  border-radius:var(--r);padding:10px 14px;margin-top:12px;
+}
+.hitl-icon{font-size:16px;flex-shrink:0}
+.hitl-text{font-size:12px;color:var(--amber);line-height:1.5}
+
+/* Summary bar */
+.summary-bar{
+  background:var(--bg3);border-top:1px solid var(--border);
+  padding:12px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+}
+.sum-item{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:var(--text3)}
+.sum-dot{width:7px;height:7px;border-radius:50%}
+.sum-val{color:var(--text2);font-weight:700}
+
+/* Toast */
+#toast{
+  position:fixed;bottom:20px;right:20px;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--r);padding:9px 16px;font-family:var(--mono);font-size:11px;
+  z-index:1000;transform:translateY(60px);opacity:0;transition:all 0.3s;
+}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.success{border-color:var(--green);color:var(--green)}
+#toast.error{border-color:var(--red);color:var(--red)}
+
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+</style>
+</head>
+<body>
+<div class="progress-bar" id="progress-bar"></div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="brand">
+    <div class="brand-icon">⚙️</div>
+    <div>
+      <div class="brand-title">Multiagent Workflow Simulator</div>
+      <div class="brand-sub">LangGraph · 5-Agent Pipeline · World Bank ITSEF</div>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-blue">LangGraph</span>
+    <span class="badge badge-gold">GPT-4o-mini</span>
+    <span class="badge badge-green">Live Pipeline</span>
+  </div>
+</div>
+
+<!-- PIPELINE STRIP -->
+<div class="pipeline-strip" id="pipeline-strip">
+  <!-- Rendered dynamically based on query type -->
+  <div class="pipe-node idle" id="pipe-router">
+    <span class="pipe-ms" id="ms-router"></span>
+    <div class="pipe-icon">🧭</div>
+    <div class="pipe-name">Router</div>
+    <div class="pipe-status" id="ps-router">Waiting</div>
+  </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-retrieval">
+    <span class="pipe-ms" id="ms-retrieval"></span>
+    <div class="pipe-icon">📚</div>
+    <div class="pipe-name">Retrieval</div>
+    <div class="pipe-status" id="ps-retrieval">Waiting</div>
+  </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-reasoning">
+    <span class="pipe-ms" id="ms-reasoning"></span>
+    <div class="pipe-icon">🧠</div>
+    <div class="pipe-name">Reasoning</div>
+    <div class="pipe-status" id="ps-reasoning">Waiting</div>
+  </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-risk">
+    <span class="pipe-ms" id="ms-risk"></span>
+    <div class="pipe-icon">⚠️</div>
+    <div class="pipe-name">Risk</div>
+    <div class="pipe-status" id="ps-risk">Waiting</div>
+  </div>
+  <div class="pipe-connector">──▶</div>
+  <div class="pipe-node idle" id="pipe-synthesis">
+    <span class="pipe-ms" id="ms-synthesis"></span>
+    <div class="pipe-icon">✍️</div>
+    <div class="pipe-name">Synthesis</div>
+    <div class="pipe-status" id="ps-synthesis">Waiting</div>
+  </div>
+  <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap" id="total-time"></div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- API Key -->
+    <div class="sidebar-section">
+      <div class="section-label">Configuration</div>
+      <div class="field-label">OpenAI API Key</div>
+      <input type="password" class="api-input" id="api-key" placeholder="sk-..." />
+    </div>
+
+    <!-- Query -->
+    <div class="sidebar-section">
+      <div class="section-label">Your Query</div>
+      <div class="query-wrap">
+        <textarea id="query-input" placeholder="Ask about sector lessons, project risks, or compare across sectors…"></textarea>
+      </div>
+      <button class="run-btn" id="run-btn" onclick="runPipeline()">
+        <span>▶ RUN PIPELINE</span>
+      </button>
+      <button class="reset-btn" onclick="resetAll()">↺ Reset</button>
+    </div>
+
+    <!-- Sample queries -->
+    <div class="sidebar-section">
+      <div class="section-label">Sample Queries</div>
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">Transport</span>
+        What are the key lessons on community ownership in rural road maintenance projects?
+      </button>
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">WASH</span>
+        How should water tariff reform be sequenced to avoid community resistance?
+      </button>
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">FCS</span>
+        What adaptive design features predict success in fragile and conflict-affected states?
+      </button>
+      <button class="chip highlight" onclick="useChip(this)">
+        <span class="chip-tag">⚡ Cross-Sector Compare</span>
+        Compare how Transport and WASH projects handled community engagement differently — what worked in each and why?
+      </button>
+      <button class="chip" onclick="useChip(this)">
+        <span class="chip-tag">Education</span>
+        Why do teacher deployment bottlenecks occur and how have projects resolved them?
+      </button>
+    </div>
+
+    <!-- How it works -->
+    <div class="sidebar-section">
+      <div class="section-label">How It Works</div>
+      <div class="step-list">
+        <div><span>①</span> Router detects domain</div>
+        <div><span>②</span> Retrieval fetches real docs</div>
+        <div><span>③</span> Reasoning extracts insights</div>
+        <div><span>④</span> Risk flags project risks</div>
+        <div><span>⑤</span> Synthesis writes final answer</div>
+      </div>
+      <div style="margin-top:12px;font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.8;border-top:1px solid var(--border);padding-top:10px">
+        Each agent card expands to show its<br>full output. Click any card to inspect.
+      </div>
+    </div>
+
+    <!-- Connected to -->
+    <div class="sidebar-section" style="margin-top:auto">
+      <div class="section-label">Connected To</div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text3);line-height:2">
+        <div>🌐 Sector AI Agent backend</div>
+        <div>🗄️ Real FAISS vector store</div>
+        <div>📊 Supabase observability</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MAIN PANEL -->
+  <div class="main" id="main-panel">
+
+    <!-- Welcome -->
+    <div class="welcome" id="welcome">
+      <div class="welcome-glow">⚙️</div>
+      <h2>Watch the agents think</h2>
+      <p>Each agent in the pipeline runs step by step — you can see exactly what each one does, how long it takes, and what it produces. Built to make multi-agent AI understandable to anyone.</p>
+      <div class="welcome-steps">
+        <span class="welcome-step">Enter API key</span>
+        <span class="welcome-step">Pick a query</span>
+        <span class="welcome-step">Click Run Pipeline</span>
+        <span class="welcome-step">Watch agents work</span>
+      </div>
+    </div>
+
+    <!-- Agents area (hidden until run) -->
+    <div class="agents-area" id="agents-area" style="display:none"></div>
+
+    <!-- Summary bar (hidden until done) -->
+    <div class="summary-bar" id="summary-bar" style="display:none">
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--green)"></div>
+        <span>Total time:</span><span class="sum-val" id="sum-time">—</span>
+      </div>
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--blue)"></div>
+        <span>Sources:</span><span class="sum-val" id="sum-sources">—</span>
+      </div>
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--red)"></div>
+        <span>Risks:</span><span class="sum-val" id="sum-risks">—</span>
+      </div>
+      <div class="sum-item">
+        <div class="sum-dot" style="background:var(--gold)"></div>
+        <span>Domain:</span><span class="sum-val" id="sum-domain">—</span>
+      </div>
+      <div class="sum-item" style="margin-left:auto">
+        <div class="sum-dot" style="background:var(--purple)"></div>
+        <span>Pipeline:</span><span class="sum-val">LangGraph 5-Agent</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const API = 'https://sector-ai-agent.onrender.com';
+
+const STANDARD_AGENTS = [
+  { key:'router',    icon:'🧭', name:'Router Agent',    desc:'Detects domain · routes to standard or comparison pipeline' },
+  { key:'retrieval', icon:'📚', name:'Retrieval Agent', desc:'Fetches relevant documents from FAISS vector store via MMR' },
+  { key:'reasoning', icon:'🧠', name:'Reasoning Agent', desc:'Analyzes documents and extracts structured insights' },
+  { key:'risk',      icon:'⚠️', name:'Risk Agent',      desc:'Identifies operational risks with severity ratings' },
+  { key:'synthesis', icon:'✍️', name:'Synthesis Agent', desc:'Synthesizes final grounded response with citations' },
+];
+
+const COMPARE_AGENTS = [
+  { key:'router',     icon:'🧭', name:'Router Agent',       desc:'Detects COMPARISON query · splits into two parallel tasks' },
+  { key:'sector_a',  icon:'🔵', name:'Sector A Agent',     desc:'Retrieves & analyzes first sector documents independently' },
+  { key:'sector_b',  icon:'🟢', name:'Sector B Agent',     desc:'Retrieves & analyzes second sector documents independently' },
+  { key:'comparison',icon:'⚡', name:'Comparison Agent',   desc:'Finds differences, patterns, and transferable lessons' },
+  { key:'risk',      icon:'⚠️', name:'Risk Agent',          desc:'Identifies cross-sector implementation risks' },
+  { key:'synthesis', icon:'✍️', name:'Synthesis Agent',     desc:'Writes final comparative brief with recommendations' },
+];
+
+let AGENTS = STANDARD_AGENTS;
+
+let isRunning = false;
+let expandedCards = new Set();
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+function showToast(msg, type='info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `show ${type}`;
+  clearTimeout(t._t); t._t = setTimeout(() => t.className = '', 3000);
+}
+
+function setProgress(pct) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => document.getElementById('progress-bar').style.width = '0%', 500);
+}
+
+function setPipeNode(key, state, ms) {
+  const node = document.getElementById(`pipe-${key}`);
+  const status = document.getElementById(`ps-${key}`);
+  const msEl = document.getElementById(`ms-${key}`);
+  node.className = `pipe-node ${state}`;
+  status.textContent = state === 'running' ? 'Running…' : state === 'done' ? 'Done' : state === 'error' ? 'Error' : 'Waiting';
+  if (ms && state === 'done') msEl.textContent = ms + 'ms';
+}
+
+function useChip(btn) {
+  const text = btn.innerText.replace(/^[^\n]+\n/, '').trim();
+  document.getElementById('query-input').value = text;
+}
+
+function resetAll() {
+  AGENTS.forEach(a => setPipeNode(a.key, 'idle'));
+  document.getElementById('agents-area').innerHTML = '';
+  document.getElementById('agents-area').style.display = 'none';
+  document.getElementById('summary-bar').style.display = 'none';
+  document.getElementById('welcome').style.display = 'flex';
+  document.getElementById('total-time').textContent = '';
+  document.getElementById('run-btn').disabled = false;
+  isRunning = false;
+}
+
+// ── Agent cards ───────────────────────────────────────────────────────────────
+function createAgentCard(agent, status='waiting') {
+  const card = document.createElement('div');
+  card.className = `agent-card ${status}`;
+  card.id = `card-${agent.key}`;
+  card.innerHTML = `
+    <div class="card-header" onclick="toggleCard('${agent.key}')">
+      <div class="card-agent-icon">${agent.icon}</div>
+      <div class="card-agent-info">
+        <div class="card-agent-name">${agent.name}</div>
+        <div class="card-agent-desc">${agent.desc}</div>
+      </div>
+      <div class="card-right">
+        <span class="card-badge badge-waiting" id="badge-${agent.key}">Waiting</span>
+        <span class="card-ms" id="cardms-${agent.key}"></span>
+        <span class="card-chevron" id="chev-${agent.key}">▾</span>
+      </div>
+    </div>
+    <div class="card-body" id="body-${agent.key}"></div>
+  `;
+  return card;
+}
+
+function toggleCard(key) {
+  const body = document.getElementById(`body-${key}`);
+  const chev = document.getElementById(`chev-${key}`);
+  if (body.classList.contains('open')) {
+    body.classList.remove('open');
+    chev.classList.remove('open');
+    expandedCards.delete(key);
+  } else {
+    body.classList.add('open');
+    chev.classList.add('open');
+    expandedCards.add(key);
+  }
+}
+
+function setCardRunning(key) {
+  const card = document.getElementById(`card-${key}`);
+  card.className = 'agent-card running';
+  const badge = document.getElementById(`badge-${key}`);
+  badge.className = 'card-badge badge-running';
+  badge.textContent = 'Running…';
+  // Auto-expand running card
+  const body = document.getElementById(`body-${key}`);
+  body.classList.add('open');
+  document.getElementById(`chev-${key}`).classList.add('open');
+  body.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;color:var(--gold2);font-family:var(--mono);font-size:11px"><span>Processing</span><span class="typing-cursor"></span></div>`;
+}
+
+function setCardDone(key, ms) {
+  const card = document.getElementById(`card-${key}`);
+  card.className = 'agent-card done';
+  const badge = document.getElementById(`badge-${key}`);
+  badge.className = 'card-badge badge-done';
+  badge.textContent = '✓ Done';
+  document.getElementById(`cardms-${key}`).textContent = ms + 'ms';
+}
+
+function setCardError(key) {
+  const card = document.getElementById(`card-${key}`);
+  card.className = 'agent-card error';
+  document.getElementById(`badge-${key}`).className = 'card-badge badge-error';
+  document.getElementById(`badge-${key}`).textContent = 'Error';
+}
+
+// ── Populate card bodies ───────────────────────────────────────────────────────
+function populateRouter(data) {
+  document.getElementById('body-router').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Domain detected</div>
+      <span class="domain-chip">${data.domain}</span>
+    </div>
+    <div class="output-section">
+      <div class="output-label">Routing decision</div>
+      <div class="output-text">Query classified as <strong>${data.domain}</strong> sector. Retrieval agent will search FAISS index for relevant sector documents and cross-cutting knowledge.</div>
+    </div>`;
+}
+
+function populateRetrieval(docs) {
+  const html = docs.map(d => `
+    <div class="doc-mini">
+      <div class="doc-mini-sector">${d.sector || 'Sector document'}</div>
+      <div class="doc-mini-title">📄 ${(d.source||'Document').split('/').pop()}</div>
+      <div class="doc-mini-excerpt">${escHtml((d.snippet||d.content||'').slice(0,160))}…</div>
+    </div>`).join('');
+  document.getElementById('body-retrieval').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">${docs.length} documents retrieved via MMR</div>
+      ${html}
+    </div>`;
+}
+
+function populateReasoning(reasoning) {
+  document.getElementById('body-reasoning').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Structured analysis</div>
+      <div class="output-text">${escHtml(reasoning)}</div>
+    </div>`;
+}
 
 
-def detect_domain(query: str) -> str:
-    q = query.lower()
-    scores = {d: sum(1 for k in kws if k in q) for d, kws in DOMAIN_KEYWORDS.items()}
-    best = max(scores, key=scores.get)
-    return best if scores[best] > 0 else "General"
+function populateComparisonAgent(comparison, sectorA, sectorB) {
+  const body = document.getElementById('body-comparison');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Cross-sector analysis · ${sectorA} vs ${sectorB}</div>
+      <div class="output-text">${escHtml(comparison)}</div>
+    </div>`;
+}
 
+function populateRisk(risks) {
+  const cards = risks.map(r => `
+    <div class="risk-card">
+      <span class="risk-sev sev-${r.severity.toLowerCase()}">${r.severity}</span>
+      <div>
+        <div class="risk-name">${escHtml(r.risk)}</div>
+        <div class="risk-mit">${escHtml(r.mitigation)}</div>
+      </div>
+    </div>`).join('');
+  document.getElementById('body-risk').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">${risks.length} risks identified</div>
+      ${cards}
+    </div>`;
+}
 
-def detect_comparison(query: str) -> tuple[bool, str, str]:
-    """Detect if query is a comparison and extract the two sectors."""
-    q = query.lower()
-    is_compare = any(w in q for w in ["compare","comparison","versus","vs","differ","differently","contrast","both"])
-    if not is_compare:
-        return False, "", ""
-    for a, b in COMPARE_PAIRS:
-        if a.lower() in q and b.lower() in q:
-            return True, a, b
-    return False, "", ""
+function populateSynthesis(answer, sources) {
+  const msgId = 'fb-' + Date.now();
+  const answerText = (answer && answer.trim()) ? answer : '(Response not available — check backend logs)';
+  const safeSources = sources || [];
+  const srcList = safeSources.slice(0,5).map(s =>
+    `<div style="font-family:var(--mono);font-size:9px;color:var(--text3);padding:4px 0;border-bottom:1px solid var(--border)">📄 ${escHtml((s.source||'doc').split('/').pop())} · p.${s.page||'N/A'}</div>`
+  ).join('');
 
+  document.getElementById('body-synthesis').innerHTML = `
+    <div class="output-section">
+      <div class="output-label">Sources used (${safeSources.length})</div>
+      <div style="margin-top:6px">${srcList || '<div style="font-size:11px;color:var(--text3)">No sources retrieved</div>'}</div>
+    </div>
+    <div class="output-section" style="margin-top:16px">
+      <div class="output-label">Final response</div>
+      <div style="font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap;word-wrap:break-word;margin-top:8px">${escHtml(answerText)}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--border)" id="${msgId}">
+      <span style="font-family:var(--mono);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text3)">Was this helpful?</span>
+      <button class="fb-btn" onclick="submitFb('${msgId}',1,this)">👍</button>
+      <button class="fb-btn" onclick="submitFb('${msgId}',-1,this)">👎</button>
+    </div>`;
+}
 
-def get_llm(temperature: float = 0.2) -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini",
-        temperature=temperature,
-        api_key=os.getenv("OPENAI_API_KEY", ""),
-    )
+async function submitFb(id, rating, btn) {
+  const row = document.getElementById(id);
+  row.querySelectorAll('.fb-btn').forEach(b => b.classList.remove('up','down'));
+  btn.classList.add(rating === 1 ? 'up' : 'down');
+  try {
+    await fetch(`${API}/feedback`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({rating, message_id: id}),
+    });
+  } catch(e) {}
+  setTimeout(() => row.innerHTML = '<span class="fb-thanks">✓ Thanks for your feedback</span>', 600);
+}
 
+// ── Main pipeline runner ──────────────────────────────────────────────────────
+async function runPipeline() {
+  const key   = document.getElementById('api-key').value.trim();
+  const query = document.getElementById('query-input').value.trim();
+  if (!key)   { showToast('Enter your OpenAI API key', 'error'); return; }
+  if (!query) { showToast('Enter a query first', 'error'); return; }
+  if (isRunning) return;
 
-def trace_entry(agent: str, input_summary: str, output_summary: str, duration_ms: int, status: str = "success") -> dict:
-    return {
-        "agent":          agent,
-        "timestamp":      datetime.now().isoformat(),
-        "input_summary":  input_summary,
-        "output_summary": output_summary,
-        "duration_ms":    duration_ms,
-        "status":         status,
+  isRunning = true;
+  document.getElementById('run-btn').disabled = true;
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('summary-bar').style.display = 'none';
+
+  // Detect compare and rebuild pipeline strip
+  const isCompare = isCompareQuery(query);
+  const sectorA = isCompare && query.toLowerCase().includes('transport') ? 'Transport' : isCompare ? 'Sector A' : '';
+  const sectorB = isCompare && query.toLowerCase().includes('wash') ? 'WASH' : isCompare && query.toLowerCase().includes('water') ? 'WASH' : isCompare ? 'Sector B' : '';
+  rebuildPipelineStrip(isCompare, sectorA, sectorB);
+
+  // Reset pipeline strip
+  AGENTS.forEach(a => setPipeNode(a.key, 'idle'));
+  document.getElementById('total-time').textContent = '';
+
+  // Build agent cards
+  const area = document.getElementById('agents-area');
+  area.style.display = 'flex';
+  area.innerHTML = '';
+  AGENTS.forEach(a => area.appendChild(createAgentCard(a)));
+
+  setProgress(10);
+  const t0 = Date.now();
+
+  // Animate pipeline nodes as we go (simulated progression while waiting for API)
+  const nodeTimings = [0, 300, 800, 1400, 2200];
+  AGENTS.forEach((a, i) => setTimeout(() => {
+    setPipeNode(a.key, 'running');
+    setCardRunning(a.key);
+  }, nodeTimings[i]));
+
+  setProgress(30);
+
+  try {
+    const res = await fetch(`${API}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: query, use_pipeline: true }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Pipeline error');
     }
 
+    const data = await res.json();
+    const totalMs = Date.now() - t0;
+    setProgress(90);
 
-# ── FAISS store ───────────────────────────────────────────────────────────────
-_vectorstore = None
+    // Populate cards from trace
+    const trace = data.agent_trace || [];
+    const traceMap = {};
+    trace.forEach(t => {
+      const key = t.agent.toLowerCase().split(' ')[0];
+      traceMap[key] = t;
+    });
 
-def get_vectorstore():
-    global _vectorstore
-    if _vectorstore is not None:
-        return _vectorstore
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    config = AgentConfig(openai_api_key=api_key)
-    vs_manager = VectorStoreManager(config)
-    store = vs_manager.load()
-    if store is None:
-        ingestor = DocumentIngestor(config)
-        docs = ingestor.load_documents()
-        if not docs:
-            docs = _seed_sample_knowledge()
-        chunks = ingestor.ingest(docs)
-        store = vs_manager.build(chunks)
-    _vectorstore = store
-    return _vectorstore
+    // Mark all done with real timings
+    AGENTS.forEach((a, i) => {
+      const t = trace[i];
+      const ms = t ? t.duration_ms : 0;
+      setPipeNode(a.key, 'done', ms);
+      setCardDone(a.key, ms);
+    });
 
+    // Populate each card body
+    populateRouter(data);
+    populateRetrieval(data.retrieved_docs, data.docs_sect_alpha, data.docs_sect_beta, data.sect_alpha, data.sect_beta);
+    const reasoningText = data.reasoning || data.analysis || (data.agent_trace && data.agent_trace[2] ? data.agent_trace[2].output_summary : '') || '';
+    populateReasoning(reasoningText);
+    // If comparison mode, add comparison agent card
+    if (data.query_type === 'comparison' && data.comparison) {
+      populateComparisonAgent(data.comparison, data.sect_alpha, data.sect_beta);
+    }
+    populateRisk(data.risks || []);
+    populateSynthesis(data.final_answer || data.answer || '', data.sources || data.retrieved_docs || []);
 
-def retrieve_for_sector(query: str, sector: str, k: int = 4) -> list[dict]:
-    """Retrieve documents focused on a specific sector."""
-    store = get_vectorstore()
-    sector_query = f"{sector} sector: {query}"
-    retriever = store.as_retriever(
-        search_type="mmr",
-        search_kwargs={"k": k, "fetch_k": 20},
-    )
-    docs = retriever.invoke(sector_query)
-    return [{
-        "source":  d.metadata.get("source", "Unknown"),
-        "sector":  d.metadata.get("sector", sector),
-        "page":    d.metadata.get("page", "N/A"),
-        "content": d.page_content,
-        "snippet": d.page_content[:200] + "…",
-    } for d in docs]
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 1 — Router
-# Detects query type: standard or comparison
-# ══════════════════════════════════════════════════════════════════════════════
-def router_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    query = state["query"]
-    llm = get_llm()
-
-    is_compare, sector_a, sector_b = detect_comparison(query)
-    domain = detect_domain(query)
-    query_type = "comparison" if is_compare else "standard"
-
-    response = llm.invoke([
-        SystemMessage(content="""You are a Router Agent for a World Bank ITSEF knowledge system.
-        Classify the query and plan the retrieval strategy. Be concise — 2 sentences."""),
-        HumanMessage(content=f"""Query: {query}
-Query type: {query_type}
-{"Sectors to compare: " + sector_a + " vs " + sector_b if is_compare else "Domain: " + domain}
-Confirm routing decision.""")
-    ])
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        "Router Agent",
-        f"Query: {query[:80]}",
-        f"Type: {query_type} | {'Comparing ' + sector_a + ' vs ' + sector_b if is_compare else 'Domain: ' + domain} | {response.content[:80]}",
-        duration,
-    )
-    return {
-        **state,
-        "domain":         domain,
-        "query_type":     query_type,
-        "sect_alpha":       sector_a,
-        "sect_beta":       sector_b,
-        "current_agent":  "branch",
-        "agent_trace":    state.get("agent_trace", []) + [trace],
+    // Check for compare mode
+    if (isCompareQuery(query)) {
+      renderCompareMode(data, query);
     }
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 2a — Transport/Sector A Retrieval & Analysis Agent (parallel branch)
-# ══════════════════════════════════════════════════════════════════════════════
-def sector_a_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    llm = get_llm()
-    sector = state["sect_alpha"]
-    query  = state["query"]
-
-    docs = retrieve_for_sector(query, sector, k=3)
-
-    docs_text = "\n\n".join(
-        f"[{d['source']}]\n{d['content']}" for d in docs
-    ) if docs else f"No specific {sector} documents found."
-
-    response = llm.invoke([
-        SystemMessage(content=f"""You are a specialist {sector} Sector Agent for a World Bank knowledge system.
-        Analyze retrieved {sector} documents and extract how this sector handled the topic in the query.
-        Focus on: approaches used, what worked, what failed, specific evidence. Be specific and concise."""),
-        HumanMessage(content=f"""Query topic: {query}
-Sector: {sector}
-
-Documents:
-{docs_text}
-
-Summarize how {sector} projects handled this topic in 3-4 key points with evidence.""")
-    ])
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        f"{sector} Agent",
-        f"Retrieving & analyzing {sector} sector documents",
-        f"Retrieved {len(docs)} docs | {response.content[:100]}",
-        duration,
-    )
-    return {
-        **state,
-        "docs_sect_alpha": docs,
-        "output_alpha":    response.content,
-        "agent_trace":   state["agent_trace"] + [trace],
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 2b — WASH/Sector B Retrieval & Analysis Agent (parallel branch)
-# ══════════════════════════════════════════════════════════════════════════════
-def sector_b_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    llm = get_llm()
-    sector = state["sect_beta"]
-    query  = state["query"]
-
-    docs = retrieve_for_sector(query, sector, k=3)
-
-    docs_text = "\n\n".join(
-        f"[{d['source']}]\n{d['content']}" for d in docs
-    ) if docs else f"No specific {sector} documents found."
-
-    response = llm.invoke([
-        SystemMessage(content=f"""You are a specialist {sector} Sector Agent for a World Bank knowledge system.
-        Analyze retrieved {sector} documents and extract how this sector handled the topic in the query.
-        Focus on: approaches used, what worked, what failed, specific evidence. Be specific and concise."""),
-        HumanMessage(content=f"""Query topic: {query}
-Sector: {sector}
-
-Documents:
-{docs_text}
-
-Summarize how {sector} projects handled this topic in 3-4 key points with evidence.""")
-    ])
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        f"{sector} Agent",
-        f"Retrieving & analyzing {sector} sector documents",
-        f"Retrieved {len(docs)} docs | {response.content[:100]}",
-        duration,
-    )
-    return {
-        **state,
-        "docs_sect_beta": docs,
-        "output_beta":    response.content,
-        "agent_trace":   state["agent_trace"] + [trace],
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 2 — Standard Retrieval Agent (non-comparison queries)
-# ══════════════════════════════════════════════════════════════════════════════
-def retrieval_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    query = state["query"]
-
-    try:
-        store = get_vectorstore()
-        retriever = store.as_retriever(
-            search_type="mmr",
-            search_kwargs={"k": 5, "fetch_k": 20},
-        )
-        docs = retriever.invoke(query)
-        retrieved = [{
-            "source":  d.metadata.get("source", "Unknown"),
-            "sector":  d.metadata.get("sector", state["domain"]),
-            "page":    d.metadata.get("page", "N/A"),
-            "content": d.page_content,
-            "snippet": d.page_content[:200] + "…",
-        } for d in docs]
-
-        duration = int((time.time() - t0) * 1000)
-        trace = trace_entry(
-            "Retrieval Agent",
-            f"MMR search: '{query[:60]}'",
-            f"Retrieved {len(retrieved)} chunks from {len(set(d['source'] for d in retrieved))} documents",
-            duration,
-        )
-        return {**state, "retrieved_docs": retrieved, "current_agent": "reasoning", "agent_trace": state["agent_trace"] + [trace]}
-    except Exception as e:
-        duration = int((time.time() - t0) * 1000)
-        trace = trace_entry("Retrieval Agent", query, f"Error: {str(e)}", duration, "error")
-        return {**state, "retrieved_docs": [], "error": str(e), "current_agent": "reasoning", "agent_trace": state["agent_trace"] + [trace]}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 3 — Standard Reasoning Agent (non-comparison queries)
-# ══════════════════════════════════════════════════════════════════════════════
-def reasoning_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    llm = get_llm()
-
-    docs_text = "\n\n".join(
-        f"[Source: {d['source']}]\n{d['content']}"
-        for d in state["retrieved_docs"]
-    ) if state["retrieved_docs"] else "No documents retrieved."
-
-    response = llm.invoke([
-        SystemMessage(content="""You are a Reasoning Agent for a World Bank ITSEF knowledge system.
-        Analyze retrieved documents and extract structured operational insights.
-        Provide 4-5 numbered key insights with evidence from the documents."""),
-        HumanMessage(content=f"Query: {state['query']}\nDomain: {state['domain']}\n\nDocuments:\n{docs_text}")
-    ])
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        "Reasoning Agent",
-        f"Analyzed {len(state['retrieved_docs'])} documents",
-        f"{len(response.content.split(chr(10)))} lines of analysis generated",
-        duration,
-    )
-    return {**state, "analysis": response.content, "current_agent": "risk", "agent_trace": state["agent_trace"] + [trace]}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 4 — Comparison Agent (comparison queries only)
-# Receives both sector analyses and synthesizes cross-sector insights
-# ══════════════════════════════════════════════════════════════════════════════
-def comparison_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    llm = get_llm()
-    sector_a = state["sect_alpha"]
-    sector_b = state["sect_beta"]
-
-    response = llm.invoke([
-        SystemMessage(content=f"""You are a Comparison Agent for a World Bank ITSEF knowledge system.
-        You receive independent analyses from two sector specialist agents and identify:
-        1. Key differences in approach between the two sectors
-        2. What each sector did better
-        3. Transferable lessons — what {sector_a} can learn from {sector_b} and vice versa
-        4. Common patterns that appear in both sectors
-        Be specific and evidence-based. Structure clearly."""),
-        HumanMessage(content=f"""Query: {state['query']}
-
-{sector_a} Sector Analysis:
-{state['output_alpha']}
-
-{sector_b} Sector Analysis:
-{state['output_beta']}
-
-Provide a structured cross-sector comparison with transferable lessons.""")
-    ])
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        "Comparison Agent",
-        f"Comparing {sector_a} vs {sector_b} analyses",
-        f"Cross-sector synthesis: {response.content[:100]}",
-        duration,
-    )
-
-    # Combine all docs for downstream agents
-    all_docs = state.get("docs_sect_alpha", []) + state.get("docs_sect_beta", [])
-
-    return {
-        **state,
-        "comparison":     response.content,
-        "retrieved_docs": all_docs,
-        "analysis":       f"{sector_a} Analysis:\n{state['output_alpha']}\n\n{sector_b} Analysis:\n{state['output_beta']}",
-        "current_agent":  "risk",
-        "agent_trace":    state["agent_trace"] + [trace],
-    }
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 5 — Risk Agent
-# ══════════════════════════════════════════════════════════════════════════════
-def risk_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    llm = get_llm(temperature=0.1)
-
-    context = state.get("comparison") or state.get("analysis", "")
-
-    response = llm.invoke([
-        SystemMessage(content="""You are a Risk Agent for a World Bank ITSEF knowledge system.
-        Identify operational risks. Return ONLY a JSON array:
-        [{"risk": "name", "severity": "High/Medium/Low", "mitigation": "brief strategy"}]
-        No other text."""),
-        HumanMessage(content=f"Query: {state['query']}\nDomain: {state['domain']}\nContext: {context[:600]}\n\nIdentify 3-4 key risks.")
-    ])
-
-    try:
-        raw = response.content.strip()
-        match = re.search(r'\[.*\]', raw, re.DOTALL)
-        risks = json.loads(match.group()) if match else []
-    except Exception:
-        risks = [
-            {"risk": "Implementation capacity gap", "severity": "High", "mitigation": "Early capacity assessment and phased rollout"},
-            {"risk": "Stakeholder coordination failure", "severity": "Medium", "mitigation": "Inter-agency working group from Day 1"},
-            {"risk": "Sustainability post-completion", "severity": "Medium", "mitigation": "Government budget integration from Year 1"},
-        ]
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        "Risk Agent",
-        f"Assessed {state['domain']} context",
-        f"Identified {len(risks)} risks: {', '.join(r['risk'] for r in risks[:2])}…",
-        duration,
-    )
-    return {**state, "risks": risks, "current_agent": "synthesis", "agent_trace": state["agent_trace"] + [trace]}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# AGENT 6 — Synthesis Agent
-# ══════════════════════════════════════════════════════════════════════════════
-def synthesis_agent(state: AgentState) -> AgentState:
-    t0 = time.time()
-    llm = get_llm()
-
-    sources = "\n".join(f"• {d['source']}" for d in state.get("retrieved_docs", []))
-    risks_text = "\n".join(
-        f"[{r['severity']}] {r['risk']}: {r['mitigation']}"
-        for r in state.get("risks", [])
-    )
-
-    if state["query_type"] == "comparison":
-        synthesis_input = f"""Query: {state['query']}
-
-{state['sect_alpha']} Analysis:
-{state.get('output_alpha', '')}
-
-{state['sect_beta']} Analysis:
-{state.get('output_beta', '')}
-
-Cross-Sector Comparison:
-{state.get('comparison', '')}
-
-Risks:
-{risks_text}
-
-Sources: {sources}"""
-        instruction = f"Write a comprehensive comparative brief contrasting {state['sect_alpha']} and {state['sect_beta']} approaches, with specific transferable lessons and recommendations."
-    else:
-        synthesis_input = f"""Query: {state['query']}
-Domain: {state['domain']}
-
-Analysis:
-{state.get('analysis', '')}
-
-Risks:
-{risks_text}
-
-Sources: {sources}"""
-        instruction = "Write a comprehensive, grounded final response with specific insights and recommendations."
-
-    response = llm.invoke([
-        SystemMessage(content=f"""You are a Synthesis Agent for a World Bank ITSEF knowledge system.
-        Combine all agent outputs into a clear, actionable response for development professionals.
-        {instruction}"""),
-        HumanMessage(content=synthesis_input)
-    ])
-
-    duration = int((time.time() - t0) * 1000)
-    trace = trace_entry(
-        "Synthesis Agent",
-        "Combining all agent outputs",
-        f"Final response: {len(response.content)} chars from {len(state.get('retrieved_docs', []))} sources",
-        duration,
-    )
-    return {**state, "final_answer": response.content, "current_agent": "complete", "agent_trace": state["agent_trace"] + [trace]}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ROUTING LOGIC
-# ══════════════════════════════════════════════════════════════════════════════
-def route_after_router(state: AgentState) -> Literal["retrieval", "sect_alpha", "sect_beta"]:
-    """After router: branch to parallel agents for comparison, or standard retrieval."""
-    if state["query_type"] == "comparison":
-        return "sect_alpha"
-    return "retrieval"
-
-
-def route_after_branches(state: AgentState) -> Literal["comparison", "reasoning"]:
-    """After both sector agents complete: go to comparison or standard reasoning."""
-    if state["query_type"] == "comparison" and state.get("output_alpha") and state.get("output_beta"):
-        return "comparison"
-    return "reasoning"
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# BUILD PIPELINE
-# ══════════════════════════════════════════════════════════════════════════════
-def build_pipeline():
-    graph = StateGraph(AgentState)
-
-    # Add all agent nodes
-    graph.add_node("router",     router_agent)
-    graph.add_node("retrieval",  retrieval_agent)
-    graph.add_node("sect_alpha",   sector_a_agent)
-    graph.add_node("sect_beta",   sector_b_agent)
-    graph.add_node("reasoning",  reasoning_agent)
-    graph.add_node("comparison", comparison_agent)
-    graph.add_node("risk",       risk_agent)
-    graph.add_node("synthesis",  synthesis_agent)
-
-    # Entry point
-    graph.set_entry_point("router")
-
-    # Conditional routing after router
-    graph.add_conditional_edges(
-        "router",
-        route_after_router,
-        {
-            "retrieval": "retrieval",
-            "sect_alpha":  "sect_alpha",
-        }
-    )
-
-    # Standard path
-    graph.add_edge("retrieval", "reasoning")
-    graph.add_edge("reasoning", "risk")
-
-    # Comparison path — sector_a runs first, then sector_b sequentially
-    # (LangGraph free tier doesn't support true parallel; sequential is equivalent)
-    graph.add_edge("sect_alpha", "sect_beta")
-    graph.add_conditional_edges(
-        "sect_beta",
-        route_after_branches,
-        {
-            "comparison": "comparison",
-            "reasoning":  "reasoning",
-        }
-    )
-    graph.add_edge("comparison", "risk")
-
-    # Final path
-    graph.add_edge("risk",      "synthesis")
-    graph.add_edge("synthesis", END)
-
-    return graph.compile()
-
-
-def run_pipeline(query: str) -> AgentState:
-    pipeline = build_pipeline()
-    initial: AgentState = {
-        "query":          query,
-        "domain":         "",
-        "query_type":     "standard",
-        "sect_alpha":       "",
-        "sect_beta":       "",
-        "retrieved_docs": [],
-        "docs_sect_alpha":  [],
-        "docs_sect_beta":  [],
-        "analysis":       "",
-        "output_alpha":     "",
-        "output_beta":     "",
-        "comparison":     "",
-        "risks":          [],
-        "final_answer":   "",
-        "agent_trace":    [],
-        "current_agent":  "router",
-        "error":          "",
-    }
-    return pipeline.invoke(initial)
-
-
-# ── CLI ───────────────────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    import sys
-    query = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else \
-        "Compare how Transport and WASH projects handled community engagement differently"
-
-    print(f"\n🔍 Query: {query}\n{'='*60}")
-    result = run_pipeline(query)
-
-    print(f"\n📋 Pipeline type: {result['query_type']}")
-    print("\n📋 AGENT TRACE:")
-    for step in result["agent_trace"]:
-        print(f"  [{step['agent']}] {step['duration_ms']}ms — {step['output_summary'][:80]}")
-
-    if result["query_type"] == "comparison":
-        print(f"\n🔀 Sectors compared: {result['sect_alpha']} vs {result['sect_beta']}")
-
-    print(f"\n⚠️  RISKS:")
-    for r in result["risks"]:
-        print(f"  [{r['severity']}] {r['risk']}")
-
-    print(f"\n✅ FINAL ANSWER:\n{result['final_answer'][:500]}...")
+    // Auto-expand synthesis
+    const synthBody = document.getElementById('body-synthesis');
+    synthBody.classList.add('open');
+    document.getElementById('chev-synthesis').classList.add('open');
+
+    // Summary bar
+    document.getElementById('sum-time').textContent = totalMs + 'ms';
+    const srcCount = (data.sources||data.retrieved_docs||[]).length;
+    document.getElementById('sum-sources').textContent = srcCount;
+    document.getElementById('sum-risks').textContent = (data.risks||[]).length;
+    document.getElementById('sum-domain').textContent = data.domain || '—';
+    document.getElementById('total-time').textContent = `Total: ${totalMs}ms`;
+    document.getElementById('summary-bar').style.display = 'flex';
+
+    setProgress(100);
+    showToast('Pipeline complete ✓', 'success');
+
+  } catch(err) {
+    AGENTS.forEach(a => { setPipeNode(a.key, 'error'); setCardError(a.key); });
+    const area = document.getElementById('agents-area');
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'padding:20px;text-align:center;color:var(--red);font-family:var(--mono);font-size:12px';
+    errDiv.textContent = '⚠ ' + err.message;
+    area.appendChild(errDiv);
+    setProgress(100);
+    showToast('Error: ' + err.message, 'error');
+  }
+
+  document.getElementById('run-btn').disabled = false;
+  isRunning = false;
+}
+
+
+
+function rebuildPipelineStrip(isCompare, sectorA, sectorB) {
+  const strip = document.getElementById('pipeline-strip');
+  if (isCompare) {
+    AGENTS = COMPARE_AGENTS;
+    strip.innerHTML = `
+      <div class="pipe-node idle" id="pipe-router"><span class="pipe-ms" id="ms-router"></span><div class="pipe-icon">🧭</div><div class="pipe-name">Router</div><div class="pipe-status" id="ps-router">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <div class="pipe-node idle" id="pipe-sector_a" style="min-width:80px"><span class="pipe-ms" id="ms-sector_a"></span><div class="pipe-icon">🔵</div><div class="pipe-name" style="font-size:7px">${sectorA}</div><div class="pipe-status" id="ps-sector_a">Waiting</div></div>
+        <div class="pipe-node idle" id="pipe-sector_b" style="min-width:80px"><span class="pipe-ms" id="ms-sector_b"></span><div class="pipe-icon">🟢</div><div class="pipe-name" style="font-size:7px">${sectorB}</div><div class="pipe-status" id="ps-sector_b">Waiting</div></div>
+      </div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-comparison"><span class="pipe-ms" id="ms-comparison"></span><div class="pipe-icon">⚡</div><div class="pipe-name">Compare</div><div class="pipe-status" id="ps-comparison">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-risk"><span class="pipe-ms" id="ms-risk"></span><div class="pipe-icon">⚠️</div><div class="pipe-name">Risk</div><div class="pipe-status" id="ps-risk">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-synthesis"><span class="pipe-ms" id="ms-synthesis"></span><div class="pipe-icon">✍️</div><div class="pipe-name">Synthesis</div><div class="pipe-status" id="ps-synthesis">Waiting</div></div>
+      <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap" id="total-time"></div>
+    `;
+  } else {
+    AGENTS = STANDARD_AGENTS;
+    strip.innerHTML = `
+      <div class="pipe-node idle" id="pipe-router"><span class="pipe-ms" id="ms-router"></span><div class="pipe-icon">🧭</div><div class="pipe-name">Router</div><div class="pipe-status" id="ps-router">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-retrieval"><span class="pipe-ms" id="ms-retrieval"></span><div class="pipe-icon">📚</div><div class="pipe-name">Retrieval</div><div class="pipe-status" id="ps-retrieval">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-reasoning"><span class="pipe-ms" id="ms-reasoning"></span><div class="pipe-icon">🧠</div><div class="pipe-name">Reasoning</div><div class="pipe-status" id="ps-reasoning">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-risk"><span class="pipe-ms" id="ms-risk"></span><div class="pipe-icon">⚠️</div><div class="pipe-name">Risk</div><div class="pipe-status" id="ps-risk">Waiting</div></div>
+      <div class="pipe-connector">──▶</div>
+      <div class="pipe-node idle" id="pipe-synthesis"><span class="pipe-ms" id="ms-synthesis"></span><div class="pipe-icon">✍️</div><div class="pipe-name">Synthesis</div><div class="pipe-status" id="ps-synthesis">Waiting</div></div>
+      <div style="margin-left:auto;font-family:var(--mono);font-size:9px;color:var(--text3);white-space:nowrap" id="total-time"></div>
+    `;
+  }
+}
+
+function isCompareQuery(query) {
+  const q = query.toLowerCase();
+  return (q.includes('compare') || q.includes('difference') || q.includes('differently') || q.includes('vs') || q.includes('versus')) &&
+    (q.includes('transport') || q.includes('road')) &&
+    (q.includes('wash') || q.includes('water'));
+}
+
+function renderCompareMode(data, query) {
+  const area = document.getElementById('agents-area');
+
+  // Extract sector-specific content from the answer
+  const answer = data.final_answer || '';
+  const docs = data.retrieved_docs || [];
+  const risks = data.risks || [];
+
+  // Flexible matching - check source name, sector, and content keywords
+  const transportDocs = docs.filter(d => {
+    const text = ((d.sector||'') + (d.source||'') + (d.snippet||d.content||'')).toLowerCase();
+    return text.includes('transport') || text.includes('road') || text.includes('rural') || text.includes('bridge') || text.includes('highway') || text.includes('icr');
+  });
+  const washDocs = docs.filter(d => {
+    const text = ((d.sector||'') + (d.source||'') + (d.snippet||d.content||'')).toLowerCase();
+    return text.includes('wash') || text.includes('water') || text.includes('sanitation') || text.includes('tariff') || text.includes('nrw');
+  });
+  // If filtering finds nothing, split docs evenly between the two panels
+  const halfLen = Math.ceil(docs.length / 2);
+  const transportDisplay = transportDocs.length > 0 ? transportDocs : docs.slice(0, halfLen);
+  const washDisplay = washDocs.length > 0 ? washDocs : docs.slice(halfLen);
+  const otherDocs = docs.filter(d => !transportDocs.includes(d) && !washDocs.includes(d));
+
+  const compareCard = document.createElement('div');
+  compareCard.className = 'agent-card done';
+  compareCard.id = 'card-compare';
+  compareCard.innerHTML = `
+    <div class="card-header" onclick="toggleCard('compare')">
+      <div class="card-agent-icon">⚡</div>
+      <div class="card-agent-info">
+        <div class="card-agent-name">Cross-Sector Comparison</div>
+        <div class="card-agent-desc">Transport vs WASH — community engagement analysis</div>
+      </div>
+      <div class="card-right">
+        <span class="card-badge badge-done">✓ Done</span>
+        <span class="card-chevron open" id="chev-compare">▾</span>
+      </div>
+    </div>
+    <div class="card-body open" id="body-compare">
+
+      <!-- Split view - always show with available docs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;width:100%">
+        <div style="background:var(--bg3);border:1px solid rgba(68,136,255,0.2);border-radius:var(--r2);overflow:hidden">
+          <div style="padding:10px 14px;background:rgba(68,136,255,0.08);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <span>🚗</span>
+            <span style="font-family:var(--display);font-size:13px;font-weight:700">Transport Sector</span>
+          </div>
+          <div style="padding:12px 14px">
+            <span style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;display:inline-block;margin-bottom:8px;background:rgba(68,136,255,0.12);color:var(--blue2);border:1px solid rgba(68,136,255,0.25)">Transport</span>
+            ${transportDisplay.slice(0,2).map(d => `
+              <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+                <span style="flex-shrink:0">📄</span>
+                <div style="color:var(--text2);line-height:1.5"><strong style="color:var(--text)">${escHtml((d.source||'').split('/').pop().replace('.txt',''))}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,140))}…</div>
+              </div>`).join('') || '<div style="font-size:12px;color:var(--text3)">No Transport-specific documents found</div>'}
+          </div>
+        </div>
+        <div style="background:var(--bg3);border:1px solid rgba(45,212,191,0.2);border-radius:var(--r2);overflow:hidden">
+          <div style="padding:10px 14px;background:rgba(45,212,191,0.08);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px">
+            <span>💧</span>
+            <span style="font-family:var(--display);font-size:13px;font-weight:700">WASH Sector</span>
+          </div>
+          <div style="padding:12px 14px">
+            <span style="font-family:var(--mono);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding:2px 7px;border-radius:3px;display:inline-block;margin-bottom:8px;background:rgba(45,212,191,0.1);color:var(--teal);border:1px solid rgba(45,212,191,0.25)">WASH</span>
+            ${washDisplay.slice(0,2).map(d => `
+              <div style="display:flex;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px">
+                <span style="flex-shrink:0">📄</span>
+                <div style="color:var(--text2);line-height:1.5"><strong style="color:var(--text)">${escHtml((d.source||'').split('/').pop().replace('.txt',''))}</strong><br>${escHtml((d.snippet||d.content||'').slice(0,140))}…</div>
+              </div>`).join('') || '<div style="font-size:12px;color:var(--text3)">No WASH-specific documents found</div>'}
+          </div>
+        </div>
+      </div>
+
+      <!-- Divider -->
+      <div class="compare-divider">
+        <div class="compare-divider-line"></div>
+        <div class="compare-divider-label">Comparative Synthesis</div>
+        <div class="compare-divider-line"></div>
+      </div>
+
+      <!-- Synthesis -->
+      <div class="compare-synthesis">
+        <div class="compare-synthesis-label">✍️ Cross-Sector Analysis</div>
+        <div class="final-text">${escHtml(answer)}</div>
+      </div>
+
+      <!-- Risks -->
+      ${risks.length ? `
+      <div style="margin-top:14px">
+        <div class="output-label">Cross-sector risks</div>
+        ${risks.map(r => `
+          <div class="risk-card">
+            <span class="risk-sev sev-${r.severity.toLowerCase()}">${r.severity}</span>
+            <div><div class="risk-name">${escHtml(r.risk)}</div><div class="risk-mit">${escHtml(r.mitigation)}</div></div>
+          </div>`).join('')}
+      </div>` : ''}
+
+      <!-- Feedback -->
+      <div class="feedback-row" id="fb-compare">
+        <span class="fb-label">Was this helpful?</span>
+        <button class="fb-btn" onclick="submitFb('fb-compare',1,this)">👍</button>
+        <button class="fb-btn" onclick="submitFb('fb-compare',-1,this)">👎</button>
+      </div>
+    </div>
+  `;
+
+  area.appendChild(compareCard);
+}
+
+function escHtml(str) {
+  return String(str||'')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('query-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.ctrlKey) runPipeline();
+});
+</script>
+</body>
+</html>
