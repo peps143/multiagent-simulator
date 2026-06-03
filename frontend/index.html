@@ -780,7 +780,7 @@ async function runPipeline() {
 
   // Detect compare and rebuild pipeline strip
   const isCompare = isCompareQuery(query);
-  const sectorA = data && data.primary_sector ? data.primary_sector : (isCompare && query.toLowerCase().includes('transport') ? 'Transport' : 'Sector A');
+  const sectorA = data && data.sector_one ? data.sector_one : (isCompare && query.toLowerCase().includes('transport') ? 'Transport' : 'Sector A');
   const sectorB = isCompare && query.toLowerCase().includes('wash') ? 'WASH' : isCompare && query.toLowerCase().includes('water') ? 'WASH' : isCompare ? 'Sector B' : '';
   rebuildPipelineStrip(isCompare, sectorA, sectorB);
 
@@ -840,15 +840,15 @@ async function runPipeline() {
 
     // Populate each card body
     populateRouter(data);
-    populateRetrieval(data.retrieved_docs, data.primary_docs, data.secondary_docs, data.primary_sector, data.secondary_sector);
-    const reasoningText = data.reasoning || data.analysis || (data.agent_trace && data.agent_trace[2] ? data.agent_trace[2].output_summary : '') || '';
+    populateRetrieval(data.retrieved_docs, data.docs_one, data.docs_two, data.sector_one, data.sector_two);
+    const reasoningText = data.reasoning || data.analysis || data.cross_analysis || (data.agent_trace && data.agent_trace[2] ? data.agent_trace[2].output_summary : '') || '';
     populateReasoning(reasoningText);
     // If comparison mode, add comparison agent card
     if (data.query_type === 'comparison' && data.comparison) {
-      populateComparisonAgent(data.comparison, data.primary_sector, data.secondary_sector);
+      populateComparisonAgent(data.comparison, data.sector_one, data.sector_two);
     }
     populateRisk(data.risks || []);
-    populateSynthesis(data.final_answer || data.answer || '', data.sources || data.retrieved_docs || []);
+    populateSynthesis(data.answer || data.final_answer || '', data.sources || data.retrieved_docs || []);
 
     // Check for compare mode
     if (isCompareQuery(query)) {
